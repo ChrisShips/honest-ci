@@ -1,0 +1,155 @@
+[build-system]
+# 77 is the first setuptools to read `license` as an SPDX expression and
+# `license-files` (PEP 639), which [project] below uses. 85 is its next major
+# version, the first allowed to break this build. No "wheel": setuptools has
+# built wheels by itself since 70.1.
+#
+# Capped, like the dependencies below, because a release can't be changed
+# once it's out, yet what it installs is resolved again each time: action.yml
+# installs this package on every run, and the README's `pipx run ... init`
+# for every new reader, each with the newest versions the index has that day.
+# Both install into an environment of their own, so a cap can't clash with
+# what another package requires. The other usual cost of a cap, a new Python
+# that only newer versions support, can't reach the Action, which pins
+# Python 3.12; pipx runs on the reader's own Python, where meeting one would
+# take a release that raises the cap.
+requires = ["setuptools>=77,<85"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "honest-ci"
+version = "0.1.0"
+description = "Catches pull requests that pass by deleting, skipping or rewriting tests, and holds them for a person, with the evidence."
+readme = "README.md"
+requires-python = ">=3.11"
+# An SPDX expression (PEP 639). SPDX has no identifier for FCL-1.0-ALv2
+# (SPDX 3.29.0, 2026-09-16), so the expression names it with LicenseRef-, the
+# prefix SPDX keeps for licenses off its list, and license-files puts the
+# text itself in the package. Not the older { text = ... } table, which
+# setuptools has deprecated.
+license = "LicenseRef-FCL-1.0-ALv2"
+license-files = ["LICENSE"]
+authors = [{ name = "Wenchao Gou" }]
+keywords = ["ci", "code-review", "coding-agents", "github-actions", "pull-requests", "testing"]
+# No "License ::" classifier. FCL-1.0-ALv2 is source-available, not an
+# OSI-approved license, and the trove list has no entry for it; the nearest
+# classifier, "Other/Proprietary License", would say something it is not.
+# Next to an SPDX expression, setuptools refuses license classifiers anyway.
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+]
+# Capped where breaking changes may start, for the reasons given at
+# [build-system]: pydantic at its next major version, and typer, still at
+# 0.x, at its next minor one. Their own dependencies, rich among them, are
+# not capped here: v0.1.1 pins the whole set, with hashes, in a lock file.
+dependencies = [
+  "pydantic>=2,<3",
+  "typer>=0.12,<0.29",
+]
+
+[project.optional-dependencies]
+# Deterministic scanners the gates shell out to. They are runtime dependencies
+# of a gate run, not of the library, so they stay out of the base install.
+gates = [
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+  "semgrep",
+  "pip-audit",
+]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+]
+otel = [
+  "opentelemetry-api",
+  "opentelemetry-sdk",
+]
+
+[project.urls]
+Homepage = "https://github.com/ChrisShips/honest-ci"
+Source = "https://github.com/ChrisShips/honest-ci"
+Issues = "https://github.com/ChrisShips/honest-ci/issues"
+
+[project.scripts]
+honest-ci = "honest_ci.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The GitHub workflow template and the configuration `honest-ci init` writes
+# are files the package hands out to repositories, and the empty settings file
+# is one it hands to Maven, not modules it imports, so they travel as data.
+[tool.setuptools.package-data]
+honest_ci = ["resources/*.yml", "resources/*.toml", "resources/*.xml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# "." for bench/, which is not part of the package and is tested from tests/.
+pythonpath = ["src", "."]
+# The acceptance suite needs a Docker daemon, a Maven image and a few minutes
+# of network for the first dependency cache. `make check` and CI must stay a
+# unit-test run, so it is deselected by default and asked for by name --
+# `make acceptance`, or `pytest -m docker`. Deselected rather than left to the
+# skipif: a run that takes five minutes on a developer's laptop should be a
+# decision, not a surprise.
+# --strict-markers: a mis-spelled marker must fail, not select nothing. The
+# whole point of the one below is that an expensive suite is skipped unless
+# asked for, and "skipped because the name was wrong" looks exactly like
+# "skipped on purpose".
+addopts = "-m 'not docker' --strict-markers"
+markers = [
+  "docker: acceptance on a real machine; needs a Docker daemon and the Java image. Not run by default; see make acceptance",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# "." makes bench/ first-party for import sorting.
+src = ["src", "tests", "."]
+
+[tool.ruff.lint]
+# Correctness and import hygiene first. E501 stays off on purpose: a wrapped
+# comment that explains a gate decision is worth more than a column count.
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests", "bench"]
+plugins = ["pydantic.mypy"]
+disallow_untyped_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = ["opentelemetry.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["honest_ci"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+]

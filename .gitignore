@@ -1,0 +1,45 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging / build artifacts
+build/
+dist/
+.eggs/
+*.egg
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test, coverage and type-checker caches
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# The benchmark's API cache and results. Its code, its method and the labels as
+# published (bench/data/) are committed.
+bench/out/
+
+# honest-ci runtime state: ledger, evidence packs, sandboxes.
+# Evidence packs are handed out as files, never committed here.
+.honest-ci/
+
+# Local credentials
+.env
+.env.local
+
+# IDE / editor
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+._*

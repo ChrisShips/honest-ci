@@ -1,0 +1,31 @@
+# The secret scan's configuration: the official default rules, with an exception
+# only for the fake credentials the redaction tests build on purpose.
+#
+# Why an exception is needed: the tests of redaction.py have to take strings
+# that look like real credentials as input, to assert that they really are
+# wiped. Remove these literals and the tests no longer prove anything.
+#
+# Why the exception is by exact value and not by path: a path allowlist (all
+# of tests/, say) would let real credentials through with the fake ones. The
+# day someone pastes a real token into a test file, the scanner goes quiet.
+# Allowed by value, the scanner still stops real things in tests/, and only
+# the five literals below are exempt.
+#
+# The bar for a new entry: the value must be a placeholder someone made up,
+# plainly not a real credential. The fix for a leaked real credential is to
+# replace the credential, not to add a line here.
+
+title = "honest-ci gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake credential placeholders for the redaction tests: alphabet runs or self-describing names, none of them real credentials"
+regexes = [
+  '''glpat-abcdefghijklmnopqrst''',
+  '''ghp_abcdefghijklmnopqrstuvwxyz012345''',
+  '''sk-abcdefghijklmnopqrstuvwx''',
+  '''sk-test-key-value-1234''',
+  '''sk-should-not-leak-into-sandbox''',
+]

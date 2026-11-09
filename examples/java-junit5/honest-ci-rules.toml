@@ -1,0 +1,77 @@
+# 退款拆分示例的规则库。
+#
+# 这份文件存在的目的不是示范「一套好的 Java 规范」，而是让三种终态在真机上可复现：
+# 干净改动 mergeable、踩到 R-01 blocked、删掉测试 needs_human。所以它只有确定性规则
+# ——正则、路径、扫描器各一类，**没有判断类规则**。判断类规则要模型凭据才能判定，
+# 没有凭据时它记为「没判定」并转人工，那样这个示例的 mergeable 就永远到不了，
+# 而到不了的原因跟 Java 工具链本身没有关系。真实规则库该有判断类规则。
+
+version = "v1"
+
+# ── 正则：命中本次变更新增的行 ────────────────────────────────────────
+[[rule]]
+id = "R-01"
+title = "金额计算不得使用 float / double"
+detail = """
+退款拆分全程以「分」为单位做整数运算。浮点数一旦进入分账，拆出来的几笔加不回原额，
+差额在对账时才会浮现，而那时已经分不清是哪一单。
+读取外部报文里的小数、测试里构造期望值不算违反——这条规则只看 src/main/java 下新增的行。
+"""
+severity = "high"
+kind = "regex"
+pattern = '\b(float|double)\b'
+paths = ["src/main/java/**/*.java"]
+fix = "改用以分为单位的 long，或 BigDecimal 并显式指定舍入方式。"
+# 一年后被拦的人问「凭什么」，答案在这一行，不在谁的记忆里。示例里是占位的事故单号。
+source_samples = ["INC-EXAMPLE-1"]
+
+[[rule]]
+id = "R-02"
+title = "异常不得只打印堆栈"
+detail = "printStackTrace 把故障现场写到没人收集的 stdout；要么记日志，要么重抛。"
+severity = "medium"   # medium 不拦截：它进证据包与度量，用来观察这条规则值不值得升级
+kind = "regex"
+pattern = 'printStackTrace\s*\('
+paths = ["src/main/java/**/*.java"]
+
+# ── 路径：命中即结论 ─────────────────────────────────────────────────
+[[rule]]
+id = "R-10"
+title = "生成的代码目录不得手工修改"
+detail = "下一次代码生成会覆盖掉手改的内容，改动应回到生成器模板。"
+severity = "high"
+kind = "path"
+paths = ["**/generated/**"]
+
+# ── 扫描器：诊断归到规则名下 ─────────────────────────────────────────
+# 工具列表固定在代码里，规则文件只能挑选，不能传参——能传参就等于给被验证的变更
+# 一个执行入口。工具自己的配置来自本仓库的 pom.xml / checkstyle.xml / pmd-ruleset.xml。
+[[rule]]
+id = "T-01"
+title = "Checkstyle 必须通过"
+detail = "配置见仓库根目录的 checkstyle.xml；只要求本次新增行干净。"
+severity = "high"
+kind = "tool"
+tool = "checkstyle"
+paths = ["src/main/java/**/*.java"]
+
+[[rule]]
+id = "T-02"
+title = "SpotBugs 必须通过"
+detail = "SpotBugs 读编译后的字节码，所以它跑的是整个模块；哪条诊断能变成发现，仍由评审门禁按新增行决定。"
+severity = "high"
+kind = "tool"
+tool = "spotbugs"
+paths = ["src/main/java/**/*.java"]
+
+[[rule]]
+id = "T-03"
+title = "PMD 必须通过"
+detail = "规则集见仓库根目录的 pmd-ruleset.xml。"
+severity = "medium"
+kind = "tool"
+tool = "pmd"
+paths = ["src/main/java/**/*.java"]
+
+# semgrep 没有列在这里：maven 镜像里没有 semgrep 可执行文件，它会记为「不可用」，
+# 而不可用就是拦截。要用它得自己构建带 semgrep 的 Java 镜像，并在仓库里放离线规则。

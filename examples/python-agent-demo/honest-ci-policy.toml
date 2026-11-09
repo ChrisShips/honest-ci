@@ -1,0 +1,16 @@
+# The demo shop's structural guardrails.
+
+[policy]
+version = "v1"
+
+# The gates this demo answers for. The regression gate is switched off
+# (HONEST_CI_DISABLED_GATES=regression, as in the GitHub workflow template) and
+# the spec gate does not exist yet. A required gate that reached no verdict is
+# not a pass, so requiring either would send every change to a person, the
+# clean one included.
+required_checks = ["review"]
+
+# sensitive_paths is left out, so the defaults apply. They include this file
+# and honest-ci-rules.toml: a change that edits the checks goes to a person
+# rather than being judged by the checks it edited. A sensitive_paths of your
+# own replaces the defaults, so it has to name both files again.

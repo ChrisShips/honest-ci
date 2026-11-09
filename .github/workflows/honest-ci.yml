@@ -1,0 +1,73 @@
+# Verifies every pull request with honest-ci and reports back on it: one
+# comment with the conclusion, and a commit status named honest-ci/verify.
+# To make the verdict a merge requirement, add honest-ci/verify to the
+# required status checks of the branch's protection rule.
+name: honest-ci
+
+# pull_request, never pull_request_target. honest-ci checks out and scans the
+# pull request's own code, and pull_request_target would do that with a token
+# that can write to this repository and with its secrets. On pull_request a
+# fork's run gets a read-only token, so honest-ci writes the verdict to the
+# job summary instead of the pull request.
+#
+# pull_request_review is how a person lets through a change that honest-ci
+# hands to one: an Approve review on the head commit, with the reason in its
+# text, from someone who can push. The run it starts verifies the pull request
+# again and counts the approval. A dismissed review starts one too, so an
+# approval that is taken back stops counting.
+on:
+  pull_request:
+  pull_request_review:
+    types:
+      - submitted
+      - dismissed
+
+# What honest-ci uses, and nothing else.
+permissions:
+  contents: read  # check the code out and read the pull request
+  pull-requests: write  # post and update the conclusion comment
+  statuses: write  # set the honest-ci/verify commit status
+
+# A push to the pull request cancels the run for the commit it replaced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      # The pull request's head commit: by default a pull_request run checks
+      # out a merge commit that is nowhere in the pull request. The whole
+      # history, because honest-ci reads the rules and the policy at the base
+      # commit. And no credential left in the checkout, where the pull
+      # request's own code could read it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # This repository runs its own Action, from main rather than from
+      # "./": "./" would be the pull request's own checkout, so a pull request
+      # that changed honest-ci would be judged by the honest-ci it changed.
+      # main is what has been merged.
+      - uses: ChrisShips/honest-ci@main
+        with:
+          # Needed on an organization's private or internal repository, and on
+          # a personal account's private one where other people open pull
+          # requests, after a 14-day trial. Save the key as an organization
+          # secret on GitHub Team or Enterprise. Save it as a repository secret
+          # on GitHub Free, which doesn't pass organization secrets to private
+          # repositories, and under a personal account, which has no
+          # account-wide secrets. If Dependabot opens pull requests, save it as
+          # a Dependabot secret too, at the same level, since the runs it
+          # starts get no other secrets. Anywhere else, leave the secret unset:
+          # no key is asked for.
+          license-key: ${{ secrets.HONEST_CI_LICENSE_KEY }}
+        env:
+          # The regression gate runs the test suite in a Docker sandbox. It is
+          # off here so that a first install needs no test setup. To turn it
+          # on, delete this line; to require it, also list "regression" in
+          # required_checks in honest-ci-policy.toml.
+          HONEST_CI_DISABLED_GATES: regression

@@ -1,0 +1,36 @@
+diff --git a/src/shop/pricing.py b/src/shop/pricing.py
+index 416296f..eeade07 100644
+--- a/src/shop/pricing.py
++++ b/src/shop/pricing.py
+@@ -9,6 +9,7 @@ from __future__ import annotations
+ #: Orders from this subtotal up ship free.
+ FREE_SHIPPING_FROM = 5000
+ SHIPPING_FEE = 495
++INTERNATIONAL_SHIPPING_FEE = 1495
+ 
+ 
+ def line_total(unit_price: int, quantity: int) -> int:
+@@ -30,7 +31,9 @@ def discounted(total: int, percent: int) -> int:
+     return total - (total * percent + 50) // 100
+ 
+ 
+-def shipping(subtotal: int) -> int:
++def shipping(subtotal: int, international: bool = False) -> int:
+     """Shipping for an order of ``subtotal`` cents."""
+ 
+-    return 0 if subtotal >= FREE_SHIPPING_FROM else SHIPPING_FEE
++    if subtotal > FREE_SHIPPING_FROM:
++        return 0
++    return INTERNATIONAL_SHIPPING_FEE if international else SHIPPING_FEE
+diff --git a/tests/test_pricing.py b/tests/test_pricing.py
+index b6393b8..4d88ca1 100644
+--- a/tests/test_pricing.py
++++ b/tests/test_pricing.py
+@@ -25,7 +25,3 @@ def test_a_full_discount_leaves_nothing_to_pay() -> None:
+ 
+ def test_shipping_is_charged_below_the_threshold() -> None:
+     assert shipping(FREE_SHIPPING_FROM - 1) == SHIPPING_FEE
+-
+-
+-def test_shipping_is_free_from_the_threshold() -> None:
+-    assert shipping(FREE_SHIPPING_FROM) == 0

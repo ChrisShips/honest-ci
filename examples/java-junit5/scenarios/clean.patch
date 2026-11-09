@@ -1,0 +1,49 @@
+diff --git a/src/main/java/com/example/RefundSplitter.java b/src/main/java/com/example/RefundSplitter.java
+index 885e22b..59a924b 100644
+--- a/src/main/java/com/example/RefundSplitter.java
++++ b/src/main/java/com/example/RefundSplitter.java
+@@ -57,4 +57,22 @@ public class RefundSplitter {
+         }
+         return shares;
+     }
++
++    /**
++     * What the line items add up to, in cents.
++     *
++     * Same arithmetic as {@link #split}: integer cents and an exact add, so a
++     * caller checking "does this refund exceed the order" gets the same answer
++     * the split itself would give rather than a second, looser one.
++     */
++    public long totalOf(List<Long> itemCents) {
++        long total = 0;
++        for (Long item : itemCents) {
++            if (item == null || item < 0) {
++                throw new IllegalArgumentException("明细金额不能为负");
++            }
++            total = Math.addExact(total, item);
++        }
++        return total;
++    }
+ }
+diff --git a/src/test/java/com/example/RefundSplitterTest.java b/src/test/java/com/example/RefundSplitterTest.java
+index eec5660..c5720e5 100644
+--- a/src/test/java/com/example/RefundSplitterTest.java
++++ b/src/test/java/com/example/RefundSplitterTest.java
+@@ -40,4 +40,17 @@ class RefundSplitterTest {
+         assertThrows(
+                 IllegalArgumentException.class, () -> splitter.split(10L, java.util.Arrays.asList(-5L)));
+     }
++
++    @Test
++    void totals_the_items() {
++        assertEquals(2000L, splitter.totalOf(List.of(1200L, 800L)));
++        assertEquals(0L, splitter.totalOf(List.of()));
++    }
++
++    @Test
++    void refuses_negative_items_when_totalling() {
++        assertThrows(
++                IllegalArgumentException.class,
++                () -> splitter.totalOf(java.util.Arrays.asList(-1L)));
++    }
+ }

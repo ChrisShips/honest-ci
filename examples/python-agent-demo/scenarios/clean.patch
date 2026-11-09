@@ -1,0 +1,41 @@
+diff --git a/src/shop/pricing.py b/src/shop/pricing.py
+index 416296f..23dd9bd 100644
+--- a/src/shop/pricing.py
++++ b/src/shop/pricing.py
+@@ -34,3 +34,10 @@ def shipping(subtotal: int) -> int:
+     """Shipping for an order of ``subtotal`` cents."""
+ 
+     return 0 if subtotal >= FREE_SHIPPING_FROM else SHIPPING_FEE
++
++
++def order_total(subtotal: int, percent: int = 0) -> int:
++    """What the customer pays: the discount first, then shipping on what is left."""
++
++    after_discount = discounted(subtotal, percent)
++    return after_discount + shipping(after_discount)
+diff --git a/tests/test_pricing.py b/tests/test_pricing.py
+index b6393b8..f56a4db 100644
+--- a/tests/test_pricing.py
++++ b/tests/test_pricing.py
+@@ -2,7 +2,7 @@ from __future__ import annotations
+ 
+ import pytest
+ 
+-from shop.pricing import FREE_SHIPPING_FROM, SHIPPING_FEE, discounted, line_total, shipping
++from shop.pricing import FREE_SHIPPING_FROM, SHIPPING_FEE, discounted, line_total, order_total, shipping
+ 
+ 
+ def test_a_line_costs_the_unit_price_times_the_quantity() -> None:
+@@ -29,3 +29,12 @@ def test_shipping_is_charged_below_the_threshold() -> None:
+ 
+ def test_shipping_is_free_from_the_threshold() -> None:
+     assert shipping(FREE_SHIPPING_FROM) == 0
++
++
++def test_an_order_pays_shipping_on_its_discounted_subtotal() -> None:
++    # 52.00 less 10% is 46.80, under the free-shipping threshold again.
++    assert order_total(5200, 10) == 4680 + SHIPPING_FEE
++
++
++def test_an_order_over_the_threshold_ships_free() -> None:
++    assert order_total(FREE_SHIPPING_FROM) == FREE_SHIPPING_FROM

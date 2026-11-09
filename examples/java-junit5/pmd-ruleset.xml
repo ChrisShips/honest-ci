@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  同 checkstyle.xml：只留几条在干净代码上不会响、在真出问题时会响的规则。
+  换成团队自己的 ruleset，门禁这一侧不用改。
+-->
+<ruleset name="honest-ci-example"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>退款拆分示例的最小 PMD 规则集</description>
+
+  <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
+  <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
+</ruleset>

@@ -1,0 +1,66 @@
+# Structural guardrails: whether this change can be judged automatically at all.
+# Copy it to the root of the repository under verification as
+# honest-ci-policy.toml (or point HONEST_CI_POLICY_PATH at it).
+# This is not the team's rule library: that belongs to the review gate and is
+# configured separately.
+
+[policy]
+version = "v1"
+
+# A change that touches one of these goes to a person: these are where a wrong
+# automated verdict costs the most.
+sensitive_paths = [
+  "**/migrations/**",
+  "**/infra/**",
+  "**/auth/**",
+  "**/security/**",
+  "**/payment/**",
+  "**/*secret*",
+  ".gitlab-ci.yml",
+  # This product's own configuration. A change that edits the rules or this
+  # policy could be judged by its own edit, so a person decides. Listing
+  # sensitive_paths here replaces the built-in list, so these two have to be
+  # named here to stay covered.
+  "honest-ci-rules.toml",
+  "honest-ci-policy.toml",
+]
+
+# Blast radius: past either size, the verdict isn't left to automation alone.
+# Counted the same way for local and forge changes: a rename counts both of its
+# names as files, and a file moved without edits counts no lines. A local move
+# that also edits the file counts every line, where a forge counts only the
+# edits: pairing an edited move would take a similarity guess, and a limit that
+# shrinks on a guess is one a change can be shaped to pass.
+max_changed_files = 60
+max_changed_lines = 4000
+
+# The gates that must reach a verdict before a merge.
+# If a gate listed here isn't deployed, is switched off by
+# HONEST_CI_DISABLED_GATES, or reached no verdict this time, the terminal state
+# is needs_human: "nothing stopped it" never turns into "it can be merged".
+# review and regression are deployed; spec is not implemented yet.
+# While only the review gate is deployed (say, for a first day's trial),
+# change this line to ["review"] explicitly: "this run answers for the review
+# gate only" should be a setting someone can audit, not a default in the code
+# that lets things through.
+# When the repository has a test suite and the regression gate should count
+# toward the merge decision, write ["review", "regression"].
+required_checks = ["spec", "review", "regression"]
+
+# What to do about review threads someone has already opened on the platform
+# and nobody has resolved.
+#   "needs_human" (default)  adds one medium finding (decided deterministically;
+#                            it says how many threads and who opened them),
+#                            and the terminal state is at least needs_human:
+#                            someone is still waiting for a reply, and the
+#                            change shouldn't be let through automatically.
+#                            It doesn't block: only a new commit can clear a
+#                            block, and a question nobody answered needs the
+#                            person who asked it.
+#   "ignore"                 review comments still go into the evidence pack
+#                            and the model's context, but don't change the
+#                            terminal state. For teams whose review threads
+#                            stay open anyway, without meaning anyone objects.
+# Whichever value you pick, review comments can't be cited: a finding can still
+# point only at a rule id and an added line.
+unresolved_reviews = "needs_human"

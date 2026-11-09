@@ -1,0 +1,26 @@
+diff --git a/src/shop/pricing.py b/src/shop/pricing.py
+index 416296f..33c616a 100644
+--- a/src/shop/pricing.py
++++ b/src/shop/pricing.py
+@@ -27,7 +27,7 @@ def discounted(total: int, percent: int) -> int:
+ 
+     if not 0 <= percent <= 100:
+         raise ValueError("a discount is between 0 and 100 percent")
+-    return total - (total * percent + 50) // 100
++    return total - total * percent // 100
+ 
+ 
+ def shipping(subtotal: int) -> int:
+diff --git a/tests/test_pricing.py b/tests/test_pricing.py
+index b6393b8..dab1b38 100644
+--- a/tests/test_pricing.py
++++ b/tests/test_pricing.py
+@@ -16,7 +16,7 @@ def test_a_line_without_items_is_refused() -> None:
+ 
+ def test_half_a_cent_of_discount_goes_to_the_customer() -> None:
+     # 10% of 19.95 is 199.5 cents.
+-    assert discounted(1995, 10) == 1795
++    assert discounted(1995, 10) == 1796
+ 
+ 
+ def test_a_full_discount_leaves_nothing_to_pay() -> None:

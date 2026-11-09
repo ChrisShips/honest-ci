@@ -1,0 +1,24 @@
+diff --git a/src/main/java/com/example/RefundSplitter.java b/src/main/java/com/example/RefundSplitter.java
+index 885e22b..14501c4 100644
+--- a/src/main/java/com/example/RefundSplitter.java
++++ b/src/main/java/com/example/RefundSplitter.java
+@@ -57,4 +57,19 @@ public class RefundSplitter {
+         }
+         return shares;
+     }
++
++    /**
++     * Each item's share of the order, as a ratio, for the reconciliation report.
++     */
++    public double[] shareRatios(List<Long> itemCents) {
++        long total = 0;
++        for (Long item : itemCents) {
++            total = Math.addExact(total, item);
++        }
++        double[] ratios = new double[itemCents.size()];
++        for (int index = 0; index < itemCents.size(); index++) {
++            ratios[index] = itemCents.get(index) / (double) total;
++        }
++        return ratios;
++    }
+ }

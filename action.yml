@@ -1,0 +1,171 @@
+# honest-ci as a GitHub Action: verify the pull request that triggered the
+# workflow, then report back on it as one comment and one commit status.
+#
+# The workflow that calls it ships inside the package, as
+# src/honest_ci/resources/github-workflow.yml. Every shell step below reads the
+# event through `env:` and never splices an expression into its script: a
+# branch name or a title is text somebody else chose.
+name: honest-ci
+description: Verify a pull request and report the verdict as a comment and a commit status.
+
+inputs:
+  github-token:
+    description: >-
+      Reads the pull request and writes the conclusion comment and the commit
+      status. The job needs contents: read, pull-requests: write and
+      statuses: write.
+    default: ${{ github.token }}
+  license-key:
+    description: >-
+      The honest-ci license key, from a secret. honest-ci needs one on an
+      organization's private or internal repository, and on a personal
+      account's private repository where other people open pull requests,
+      after a 14-day trial; anywhere else it needs none. Left empty, a key
+      the step sets as HONEST_CI_LICENSE_KEY under env: is used instead.
+
+outputs:
+  exit-code:
+    description: >-
+      The verdict as an exit code: 0 mergeable, 1 blocked, 3 needs a human,
+      4 the run or the write-back failed, or no gate ran for want of a license
+      key, 2 honest-ci is misconfigured. Any code but 0 also fails the step.
+    value: ${{ steps.verify.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    # Checked before anything is installed, because the event decides what the
+    # token may do and whose code sits in the checkout. pull_request_review is
+    # the event an Approve review starts, and it gives a fork's run the same
+    # read-only token as pull_request does. pull_request_target is refused
+    # rather than supported: it gives a run the base repository's secrets and
+    # a token that can write, and honest-ci scans -- with the regression gate
+    # on, runs -- the pull request's code.
+    # https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/
+    - name: Check the trigger
+      shell: bash
+      run: |
+        if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$GITHUB_EVENT_NAME" != "pull_request_review" ]; then
+          echo "::error title=honest-ci::honest-ci verifies pull requests on the pull_request event, and again on pull_request_review so that an Approve review can count; this run was triggered by ${GITHUB_EVENT_NAME:-an unnamed event}. Use 'on: pull_request' and 'pull_request_review'. pull_request_target is refused because it would run the pull request's code with a token that can write to this repository."
+          exit 2
+        fi
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          echo "::error title=honest-ci::honest-ci runs on Linux and macOS runners."
+          exit 2
+        fi
+
+    # An interpreter of its own, and the job's PATH left alone: the steps after
+    # this Action keep whatever Python the workflow set up.
+    - name: Set up Python
+      id: python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.12"
+        update-environment: false
+
+    # From this Action's own directory, so the honest-ci that judges the pull
+    # request is the release the workflow pinned rather than whatever a package
+    # index serves that day. Its dependencies still come from the index.
+    - name: Install honest-ci
+      shell: bash
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+      run: |
+        "$PYTHON" -m venv "$RUNNER_TEMP/honest-ci/venv"
+        "$RUNNER_TEMP/honest-ci/venv/bin/python" -m pip install --quiet --disable-pip-version-check "$GITHUB_ACTION_PATH"
+
+    # The rules and the policy judge the change, so they are read at the base
+    # commit instead of being taken from it: a pull request that loosened a
+    # rule would otherwise be judged by the looser rule. They are copied into
+    # the run's own directory -- the checkout is the pull request's tree --
+    # under their paths in the repository, which is how the evidence then names
+    # them. A file the base commit does not have stays absent, and the run
+    # reads that as "not configured", never as a cue to use the pull request's
+    # copy.
+    - name: Read the rules and the policy at the base commit
+      id: config
+      shell: bash
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        root="$RUNNER_TEMP/honest-ci/run"
+        rm -rf "$root"
+        mkdir -p "$root"
+        commit='^[0-9a-f]{40}([0-9a-f]{24})?$'
+        if [[ ! "$BASE_SHA" =~ $commit ]] || ! git -C "$GITHUB_WORKSPACE" cat-file -e "$BASE_SHA^{commit}"; then
+          echo "::error title=honest-ci::The pull request's base commit (${BASE_SHA:-none given}) is not in the checkout at $GITHUB_WORKSPACE, so the rules and the policy cannot be read at it. Check the repository out with 'fetch-depth: 0'."
+          exit 4
+        fi
+
+        # <output> <path in the repository>
+        copy() {
+          local path="$2" entry mode
+          local shape='^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$'
+          # Relative, and inside the repository: an absolute path or one with a
+          # '..' could only name something the base commit does not hold.
+          if [[ ! "$path" =~ $shape ]] || [[ "/$path/" == */./* || "/$path/" == */../* ]]; then
+            echo "::error title=honest-ci::$path is not a path inside the repository. The Action reads the rules and the policy at the base commit, so HONEST_CI_RULES_PATH and HONEST_CI_POLICY_PATH name files relative to the repository root."
+            exit 2
+          fi
+          entry="$(git -C "$GITHUB_WORKSPACE" ls-tree "$BASE_SHA" -- "$path")"
+          mode="${entry%% *}"
+          if [ -z "$entry" ]; then
+            echo "$path does not exist at the base commit ${BASE_SHA:0:12}; the run goes without it."
+          elif [ "$mode" = "100644" ] || [ "$mode" = "100755" ]; then
+            mkdir -p "$(dirname "$root/$path")"
+            git -C "$GITHUB_WORKSPACE" cat-file blob "$BASE_SHA:$path" > "$root/$path"
+            echo "Read $path at the base commit ${BASE_SHA:0:12}."
+          else
+            # A link would be read as the text of its target, a directory or a
+            # submodule not at all; none of them is the file a reader expects.
+            echo "::error title=honest-ci::$path at the base commit ${BASE_SHA:0:12} is not a regular file (git mode $mode)."
+            exit 2
+          fi
+          echo "$1=$root/$path" >> "$GITHUB_OUTPUT"
+        }
+
+        copy rules "${HONEST_CI_RULES_PATH:-honest-ci-rules.toml}"
+        copy policy "${HONEST_CI_POLICY_PATH:-honest-ci-policy.toml}"
+        echo "root=$root" >> "$GITHUB_OUTPUT"
+        echo "evidence=$root/evidence" >> "$GITHUB_OUTPUT"
+
+    # The exit code is the verdict (see outputs.exit-code). The run's own
+    # directory holds its ledger; the evidence goes to a directory without a
+    # leading dot, which the upload below would otherwise skip as hidden.
+    - name: Verify the pull request
+      id: verify
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        LICENSE_KEY: ${{ inputs.license-key }}
+        HONEST_CI_FORGE: github
+        HONEST_CI_RULES_PATH: ${{ steps.config.outputs.rules }}
+        HONEST_CI_POLICY_PATH: ${{ steps.config.outputs.policy }}
+        HONEST_CI_ARTIFACTS_DIR: ${{ steps.config.outputs.evidence }}
+        RUN_ROOT: ${{ steps.config.outputs.root }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        # The name the upload below gives the evidence, so that the comment can
+        # say where the full pack is once this runner and its ledger are gone.
+        HONEST_CI_EVIDENCE_ARTIFACT: honest-ci-evidence-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
+      run: |
+        # honest-ci reads the key from HONEST_CI_LICENSE_KEY. The input goes
+        # there only when it was given: mapped under env: above, an input
+        # left out would replace a key the workflow set there with nothing.
+        if [ -n "$LICENSE_KEY" ]; then
+          export HONEST_CI_LICENSE_KEY="$LICENSE_KEY"
+        fi
+        unset LICENSE_KEY
+        code=0
+        "$RUNNER_TEMP/honest-ci/venv/bin/honest-ci" run-pr "$GITHUB_REPOSITORY" "$PR_NUMBER" --workspace "$RUN_ROOT" || code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        exit "$code"
+
+    # Whatever the verdict: a blocked change, or one held for a person, is the
+    # one whose evidence somebody will want to read.
+    - name: Upload the evidence pack
+      if: ${{ !cancelled() && (steps.verify.outcome == 'success' || steps.verify.outcome == 'failure') }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: honest-ci-evidence-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
+        path: ${{ steps.config.outputs.evidence }}
+        if-no-files-found: ignore

@@ -1,0 +1,23 @@
+# 退款拆分示例的结构护栏。
+
+[policy]
+version = "v1"
+
+# 命中即转人工。示例仓库里没有这些目录，留着是为了让复制走这份文件的人有个起点。
+sensitive_paths = [
+  "**/migrations/**",
+  "**/security/**",
+  "**/*secret*",
+  # The gate's own configuration: a change that edits it is not judged by it.
+  "honest-ci-rules.toml",
+  "honest-ci-policy.toml",
+]
+
+max_changed_files = 60
+max_changed_lines = 4000
+
+# 规格门禁尚未实现，写进来终态就永远是 needs_human。这个示例对评审与回归两道门禁
+# 负责，就只写这两道——「本次只对哪几道门禁负责」应该是一条可审计的配置。
+required_checks = ["review", "regression"]
+
+unresolved_reviews = "needs_human"

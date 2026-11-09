@@ -1,0 +1,115 @@
+# honest-ci's rules for this repository. The review gate judges every pull
+# request against them.
+#
+# Written by `honest-ci init --github`. Every rule below is decided by
+# deterministic code from the pull request's diff alone, so it needs no model,
+# no scanner and no test setup. Your team's own rules go at the end.
+#
+# The GitHub Action reads this file at the pull request's base commit, not
+# from the pull request: a pull request that loosened a rule would otherwise
+# be judged by the looser rule. A pull request that edits this file goes to a
+# person (sensitive_paths in honest-ci-policy.toml).
+
+# Part of the approval fingerprint: raise it whenever you change a rule, and
+# approvals given under the old rules stop applying.
+version = "v1"
+
+# ── Test integrity ───────────────────────────────────────────────────
+# One rule per check. What each check reports:
+#
+#   deleted_test         a test, a named case of a test table, or a whole test
+#                        file stops existing or stops being collected, and
+#                        nothing of that name is added back where it runs
+#   skip_or_focus        a new skip, xfail, todo, @Disabled or .only marker
+#   fewer_assertions     a test file that stays loses more assertions than it gains
+#   changed_expectation  an assertion keeps its shape and changes only a literal,
+#                        in a pull request that also edits code outside the tests
+#   loosened_threshold   a coverage threshold lowered, or tests excluded from the run
+#
+# These read the lines a pull request removes as well as the ones it adds:
+# deleting the failing test leaves no added line to match. A hit is a fact
+# about the diff. Removing a feature together with its tests is a deleted_test
+# hit too, so these hold the pull request for a person rather than block it,
+# and the person decides.
+#
+# action is what a hit does:
+#   "needs_human" (default)  the pull request waits for a person; severity
+#                            medium or lower
+#   "block"                  the pull request is blocked; severity high or
+#                            critical (high when not given)
+#   "record"                 the hit only goes into the evidence pack; severity
+#                            medium or lower
+# paths and exclude_paths narrow which files a rule reports on.
+[[rule]]
+id = "I-01"
+title = "Tests do not disappear"
+kind = "integrity"
+check = "deleted_test"
+fix = "Keep the test, or say in the pull request why it no longer applies."
+
+[[rule]]
+id = "I-02"
+title = "No new skipped or focused tests"
+kind = "integrity"
+check = "skip_or_focus"
+fix = "Fix what the test found, or say in the pull request why it cannot run."
+
+[[rule]]
+id = "I-03"
+title = "Assertions do not quietly go away"
+kind = "integrity"
+check = "fewer_assertions"
+
+[[rule]]
+id = "I-04"
+title = "Expected values change for a reason"
+kind = "integrity"
+check = "changed_expectation"
+fix = "If the old value was right, fix the code; if it was wrong, say so in the pull request."
+
+# Blocks rather than asks. A deleted test can be part of removing a feature;
+# a lower coverage bar or a test left out of the run is not part of anything
+# else, and it changes what passing means for every pull request after this one.
+[[rule]]
+id = "I-05"
+title = "The coverage bar does not move down"
+kind = "integrity"
+check = "loosened_threshold"
+action = "block"
+
+# ── Your team's rules ────────────────────────────────────────────────
+# Two more kinds are decided from the diff alone. Uncomment one and adapt it;
+# the id is yours to choose.
+#
+# A regular expression, matched only on the lines a pull request adds: a
+# review that reports code nobody touched stops being read. severity decides
+# what a hit does: high and critical block, the rest are recorded in the
+# evidence pack.
+# [[rule]]
+# id = "R-01"
+# title = "Amounts are not floats"
+# detail = "Amounts are integer cents. A float loses a cent here and there."
+# severity = "high"
+# kind = "regex"
+# pattern = '\bfloat\s*\('
+# paths = ["src/**/*.py"]
+# exclude_paths = ["tests/**"]
+# fix = "Keep amounts in integer cents."
+#
+# A path: touching it is the finding.
+# [[rule]]
+# id = "R-10"
+# title = "Generated code is not edited by hand"
+# detail = "The next generator run overwrites a hand edit; change the generator instead."
+# severity = "high"
+# kind = "path"
+# paths = ["**/generated/**"]
+#
+# Two kinds are left out on purpose. Scanner rules (kind = "tool") need a
+# scanner, and the GitHub Action does not install one: a scanner that is not
+# there fails closed, which blocks every pull request. Judgment rules
+# (kind = "judgment") need a model: without one they are recorded as not
+# reviewed, and every pull request goes to a person.
+#
+# To switch a rule off and keep the record of why it existed, add
+# enabled = false to it rather than deleting it.

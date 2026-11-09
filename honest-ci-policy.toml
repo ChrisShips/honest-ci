@@ -1,0 +1,56 @@
+# honest-ci's policy for this repository: which pull requests get an automated
+# verdict at all, and which go to a person whatever the gates find.
+#
+# Written by `honest-ci init --github`. Like the rules, the GitHub Action reads
+# it at the pull request's base commit, and a pull request that edits it goes
+# to a person.
+
+[policy]
+# Part of the approval fingerprint: raise it whenever you change this file, and
+# approvals given under the old policy stop applying.
+version = "v1"
+
+# The gates a pull request needs a verdict from. A gate listed here that
+# reached no verdict is not a pass, so listing one that does not run sends
+# every pull request to a person. That is why this names the review gate
+# alone: the workflow switches the regression gate off
+# (HONEST_CI_DISABLED_GATES in .github/workflows/honest-ci.yml), and the spec
+# gate does not exist yet. To have the regression gate run your test suite
+# and count, delete that line from the workflow and write
+# ["review", "regression"] here.
+required_checks = ["review"]
+
+# A pull request that touches one of these goes to a person: these are where a
+# wrong automated verdict costs the most. The list replaces the built-in one
+# rather than adding to it, so it names this file and honest-ci-rules.toml
+# again: a pull request that edits the checks would otherwise be judged by
+# the checks it edited.
+sensitive_paths = [
+  "**/migrations/**",
+  "**/infra/**",
+  "**/terraform/**",
+  "**/auth/**",
+  "**/security/**",
+  "**/payment/**",
+  "**/*secret*",
+  "**/*password*",
+  ".github/**",
+  ".gitlab-ci.yml",
+  "Jenkinsfile",
+  "honest-ci-rules.toml",
+  "honest-ci-policy.toml",
+]
+
+# Past either size, a pull request goes to a person: a verdict on a change
+# that large is not left to automation alone. A renamed file counts as two
+# files, and a file moved without edits as no lines.
+max_changed_files = 60
+max_changed_lines = 4000
+
+# What an unresolved review thread on the pull request does:
+#   "needs_human" (default)  the pull request waits for a person. Somebody
+#                            asked a question and nobody has answered it.
+#   "ignore"                 the threads still go into the evidence pack, but
+#                            do not change the verdict. For teams that leave
+#                            threads open as a matter of habit.
+unresolved_reviews = "needs_human"

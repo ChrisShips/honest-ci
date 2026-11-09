@@ -1,0 +1,12 @@
+[project]
+name = "shop"
+version = "0.1.0"
+description = "The project honest-ci's Python demo verifies."
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

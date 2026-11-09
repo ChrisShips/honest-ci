@@ -1,0 +1,219 @@
+# The team's rule library: the review gate makes its first pass against this file.
+#
+# Copy it to the root of the repository under verification as
+# honest-ci-rules.toml (or point HONEST_CI_RULES_PATH at it).
+# This is not the structural guardrails: whether a change can be judged
+# automatically at all belongs to honest-ci-policy.toml, configured separately.
+#
+# Four things are worth saying first:
+#
+# 1. Without this file the review gate lets no change through: it records that
+#    nothing was reviewed against rules, and the change goes to a person.
+#    "No rules" does not mean "no problems".
+# 2. Rules look only at the lines this change **adds**. A problem reported on
+#    code the change didn't touch is recorded in the evidence pack but doesn't
+#    block: once a review gate starts reporting problems that were already
+#    there, nobody believes it any more.
+#    Test-integrity rules (kind = "integrity", below) also read the lines the
+#    change removed: those lines are the change, not code nobody touched.
+# 3. Only severity high and critical block. The other levels still go into the
+#    evidence pack and the metrics, for watching whether a rule is worth raising
+#    to a blocking level.
+# 4. A judgment rule (kind = "judgment") never blocks on its own, however high
+#    its severity: it only sends the change to a person. The model gives advice
+#    with citations, not a verdict. A block is a terminal state that only a new
+#    commit can clear, and a probabilistic judgment must not approve in a
+#    person's place.
+#
+# Security note: for a production deployment, point HONEST_CI_RULES_PATH at a
+# trusted path outside the repository. Otherwise this file is itself inside the
+# change under verification, and whoever changes the rules can loosen them in
+# passing.
+
+# The rules' version goes into the fingerprint: raise it whenever you change a
+# rule, and earlier approvals stop applying.
+version = "v1"
+
+# ── Method 1: a regular expression, matched on added lines ───────────
+[[rule]]
+id = "R-01"
+title = "Money is not calculated with float"
+detail = "Floating point can't represent most decimal fractions. An amount that goes through float arithmetic can gain or lose a cent, and nobody finds out until reconciliation."
+severity = "high"
+kind = "regex"
+pattern = 'float\s*\('
+paths = ["**/*.py"]
+exclude_paths = ["tests/**"]
+fix = "Use decimal.Decimal instead, and quantize explicitly at the boundaries."
+# The real changes this rule was mined from: an MR number, an incident ticket.
+# A year from now, when someone asks why they were blocked, this line is the
+# answer. See the note at the end of the file.
+source_samples = ["INC-EXAMPLE-1", "example/shop!1"]
+
+[[rule]]
+id = "R-02"
+title = "New endpoints do not swallow exceptions"
+detail = "An except that neither logs nor re-raises leaves nothing to go on when something breaks."
+severity = "medium"
+kind = "regex"
+pattern = 'except\s+Exception\s*:\s*$'
+paths = ["src/**/*.py"]
+
+# ── Method 2: the path itself is the finding ─────────────────────────
+[[rule]]
+id = "R-10"
+title = "The generated SDK is not edited by hand"
+detail = "The next code generation run overwrites a hand edit; the change belongs in the generator's templates."
+severity = "high"
+kind = "path"
+paths = ["**/generated/**", "**/*_pb2.py"]
+
+# ── Method 3: scanner diagnostics, filed under a rule ────────────────
+# The list of tools is fixed in the code (ruff / mypy / semgrep) and takes no
+# arguments of your own: a rules file that could put arguments into a
+# subprocess would give the change under verification a way to run code.
+# Every tool has to reach a verdict with no network, which is why pip-audit
+# isn't one of them.
+[[rule]]
+id = "T-01"
+title = "Static checks pass (ruff)"
+detail = "Only the lines this change adds have to be clean; existing code doesn't have to be cleaned up first."
+severity = "high"
+kind = "tool"
+tool = "ruff"
+paths = ["src/**/*.py"]
+
+[[rule]]
+id = "T-02"
+title = "Type annotations are consistent (mypy)"
+severity = "medium"
+kind = "tool"
+tool = "mypy"
+paths = ["src/**/*.py"]
+
+# semgrep needs an offline rules file in the repository (.semgrep.yml).
+# --config auto needs the network, and the scanners never use the network, so
+# without a rules file semgrep is recorded as unavailable.
+# Unavailable means blocked, not let through.
+# [[rule]]
+# id = "T-03"
+# title = "Security pattern scan passes (semgrep)"
+# severity = "critical"
+# kind = "tool"
+# tool = "semgrep"
+
+# ── Test integrity, read off the diff ────────────────────────────────
+# One rule per check. What each check reports:
+#
+#   deleted_test         a test, a named case of a test table, or a whole test
+#                        file stops existing or stops being collected, and
+#                        nothing of that name is added back where it runs
+#   skip_or_focus        a new skip, xfail, todo, @Disabled or .only marker
+#   fewer_assertions     a test file that stays loses more assertions than it gains
+#   changed_expectation  an assertion keeps its shape and changes only a literal,
+#                        in a change that also edits code outside the tests
+#   loosened_threshold   a coverage threshold lowered, or tests excluded from the run
+#
+# These are the rules that read the lines a change removed as well as the ones
+# it added: deleting the failing test leaves no added line to match. A hit is
+# a fact about the diff, worded neutrally -- removing a feature together with
+# its tests is a deleted_test hit too, and whoever reviews it decides.
+#
+# action is what a hit does:
+#   "needs_human" (default)  the change waits for a person; severity medium or lower
+#   "block"                  the change is blocked; severity high or critical
+#                            (high when not given)
+#   "record"                 the hit only goes into the evidence pack; severity
+#                            medium or lower
+# A severity that disagrees with the action is refused when the file loads.
+# paths and exclude_paths narrow which files a rule reports on, as elsewhere.
+[[rule]]
+id = "I-01"
+title = "Tests do not disappear"
+kind = "integrity"
+check = "deleted_test"
+fix = "Keep the test, or say in the change why it no longer applies."
+
+[[rule]]
+id = "I-02"
+title = "No new skipped or focused tests"
+kind = "integrity"
+check = "skip_or_focus"
+
+[[rule]]
+id = "I-03"
+title = "Assertions do not quietly go away"
+kind = "integrity"
+check = "fewer_assertions"
+
+[[rule]]
+id = "I-04"
+title = "Expected values change for a reason"
+kind = "integrity"
+check = "changed_expectation"
+
+[[rule]]
+id = "I-05"
+title = "The coverage bar does not move down"
+kind = "integrity"
+check = "loosened_threshold"
+action = "block"
+
+# ── Method 4: what no path or regex can say, read by a model ─────────
+# Most of the team rules really worth having are of this kind: "order status
+# changes go through the state machine" can't be written as a regular
+# expression. How these rules are bounded, most important first:
+#
+#   · detail is required, because it is the criterion itself: the model reads
+#     by it, and whoever it stops argues with it. "Don't mess with the status"
+#     is no use; say exactly what counts as a violation.
+#   · The model may cite only rule ids from this file, and may point only at
+#     lines this change adds. If a citation doesn't match or a line number
+#     doesn't land, the whole output is thrown away and the rule is recorded
+#     as not judged → a person.
+#   · No model credentials configured, HONEST_CI_MODEL_JUDGMENT=0, or a failed
+#     call: the same, not judged → a person. Not skipped, and not passed.
+#   · min_confidence decides whether something counts as a finding, not
+#     whether it blocks (judgment rules never block). A doubt below the bar is
+#     only written under "What this run could not verify", and stays out of
+#     the false-positive rate's denominator.
+#   · severity is set by this file, and the model can't change it: it tells
+#     the person how closely to look.
+[[rule]]
+id = "J-01"
+title = "Order status changes go through the state machine"
+detail = """
+An order's status changes only through OrderState.transition(). Assigning to
+order.status / item.status directly, or going around the state machine with
+update(status=...), is a violation: the state machine carries the side effects
+for reconciliation and notifications, and going around it leaves the books
+unbalanced after a refund and the buyer without a notification.
+Reading the status, or building an initial status in a test, is not a violation.
+"""
+severity = "high"
+kind = "judgment"
+paths = ["src/**/*.py"]
+exclude_paths = ["tests/**"]
+min_confidence = 0.75
+fix = "Call OrderState.transition(order, target_status) instead, and leave the side effects to the state machine."
+
+# ── source_samples: where a rule came from ───────────────────────────
+# Rules are mined as samples → a draft (written by a model) → a person
+# finalizes it. Record the source samples when you finalize. Any rule can carry
+# them and they are optional, but only they can answer, a year from now, why the
+# rule exists: the answer is in the rules file, not in someone's memory.
+#
+# The values' format isn't checked: incident tickets and MR numbers are sources
+# too, and so is anything else a team tracks. They go into the evidence pack's
+# rules_evaluated section, and honest-ci doctor reports how many rules record a
+# source.
+
+# To switch a rule off and keep why it existed, add enabled = false rather than
+# deleting it.
+# [[rule]]
+# id = "R-99"
+# title = "Legacy rule, covered by CI since 2026-08"
+# severity = "low"
+# kind = "regex"
+# pattern = 'TODO'
+# enabled = false

@@ -1,0 +1,1568 @@
+{
+  "$defs": {
+    "ArtifactManifest": {
+      "properties": {
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRecord"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id"
+      ],
+      "title": "ArtifactManifest",
+      "type": "object"
+    },
+    "ArtifactRecord": {
+      "properties": {
+        "kind": {
+          "default": "json",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "default": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "sha256"
+      ],
+      "title": "ArtifactRecord",
+      "type": "object"
+    },
+    "BlockBrief": {
+      "description": "Model explanation of a deterministic block.\n\nThe gate stays authoritative: the brief may only restate and prioritise\nevidence the gate already produced, and it is discarded unless every cited\nid came from that gate.",
+      "properties": {
+        "attempt": {
+          "minimum": 1,
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "cited_evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cited Evidence Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "gate": {
+          "enum": [
+            "spec",
+            "review",
+            "regression",
+            "metrics"
+          ],
+          "title": "Gate",
+          "type": "string"
+        },
+        "recommended_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recommended Actions",
+          "type": "array"
+        },
+        "root_causes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Root Causes",
+          "type": "array"
+        },
+        "source_fingerprint": {
+          "title": "Source Fingerprint",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "attempt",
+        "source_fingerprint",
+        "summary"
+      ],
+      "title": "BlockBrief",
+      "type": "object"
+    },
+    "ChangeRequest": {
+      "description": "One incoming change: a merge/pull request, or a local diff under review.",
+      "properties": {
+        "ai_generated_ratio": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ai Generated Ratio"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "base_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Sha"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "diff": {
+          "default": "",
+          "title": "Diff",
+          "type": "string"
+        },
+        "files_changed": {
+          "items": {
+            "$ref": "#/$defs/ChangedFile"
+          },
+          "title": "Files Changed",
+          "type": "array"
+        },
+        "forge": {
+          "default": "local",
+          "enum": [
+            "gitlab",
+            "gitee",
+            "github",
+            "local"
+          ],
+          "title": "Forge",
+          "type": "string"
+        },
+        "head_sha": {
+          "title": "Head Sha",
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number"
+        },
+        "platform_reviews": {
+          "items": {
+            "$ref": "#/$defs/PlatformReview"
+          },
+          "title": "Platform Reviews",
+          "type": "array"
+        },
+        "platform_reviews_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Platform Reviews Error"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "source_branch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Branch"
+        },
+        "target_branch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Branch"
+        },
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "repo",
+        "head_sha"
+      ],
+      "title": "ChangeRequest",
+      "type": "object"
+    },
+    "ChangedFile": {
+      "properties": {
+        "added_lines": {
+          "default": 0,
+          "title": "Added Lines",
+          "type": "integer"
+        },
+        "change_type": {
+          "default": "modified",
+          "enum": [
+            "added",
+            "modified",
+            "deleted",
+            "renamed"
+          ],
+          "title": "Change Type",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "previous_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Path"
+        },
+        "removed_lines": {
+          "default": 0,
+          "title": "Removed Lines",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "ChangedFile",
+      "type": "object"
+    },
+    "Finding": {
+      "description": "Why a gate raised something, in a form a developer can act on.",
+      "properties": {
+        "cited_evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cited Evidence Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "decided_by": {
+          "default": "deterministic",
+          "title": "Decided By",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "false_positive": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "False Positive"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "gate": {
+          "enum": [
+            "spec",
+            "review",
+            "regression",
+            "metrics"
+          ],
+          "title": "Gate",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "line_start": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Start"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        },
+        "severity": {
+          "default": "medium",
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "side": {
+          "default": "head",
+          "enum": [
+            "base",
+            "head"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "suggested_fix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggested Fix"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "gate",
+        "title"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "GateConfiguration": {
+      "description": "What this deployment was configured to do, at the moment of the run.\n\nAn evidence pack answers \"what was verified\". Without this it cannot answer\n\"under what\", and the two runs someone will eventually put side by side\ndiffer precisely there: a rule was edited, a gate was switched off, a\ncoverage bar was lowered, the judgment model was turned off, a different\nimage ran the tools. Each of those is one line here instead of something a\nreader has to reconstruct from an environment that has since moved on.\n\n``rules_sha256`` is ``None`` when no rule library was configured, never an\nempty string: \"there was no file\" and \"the file was empty\" are different\nfacts, and only one of them explains a review gate that found nothing.\n\nDeliberately **not** part of the approval fingerprint. The fingerprint\nbinds a signature to the commit, the policy version and the rule version;\nfolding a threshold into it would invalidate every approval the moment an\noperator tuned one, which is a different decision from the one this\nsnapshot makes. It records; the fingerprint decides.\n\nIt carries no credential. The provider and the model name say which service\nwas asked, never what it was asked with.",
+      "properties": {
+        "changed_line_coverage_threshold": {
+          "default": 0.0,
+          "title": "Changed Line Coverage Threshold",
+          "type": "number"
+        },
+        "coverage_threshold": {
+          "default": 0.0,
+          "title": "Coverage Threshold",
+          "type": "number"
+        },
+        "deployed_gates": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Deployed Gates",
+          "type": "array"
+        },
+        "disabled_gates": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Disabled Gates",
+          "type": "array"
+        },
+        "docker_image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docker Image"
+        },
+        "fail_closed": {
+          "default": true,
+          "title": "Fail Closed",
+          "type": "boolean"
+        },
+        "language": {
+          "default": "",
+          "title": "Language",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "model_explain": {
+          "default": false,
+          "title": "Model Explain",
+          "type": "boolean"
+        },
+        "model_judgment": {
+          "default": false,
+          "title": "Model Judgment",
+          "type": "boolean"
+        },
+        "model_min_confidence": {
+          "default": 0.0,
+          "title": "Model Min Confidence",
+          "type": "number"
+        },
+        "model_provider": {
+          "default": "",
+          "title": "Model Provider",
+          "type": "string"
+        },
+        "model_testgen": {
+          "default": false,
+          "title": "Model Testgen",
+          "type": "boolean"
+        },
+        "policy_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Path"
+        },
+        "policy_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Sha256"
+        },
+        "policy_version": {
+          "default": "v1",
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "product_version": {
+          "default": "",
+          "title": "Product Version",
+          "type": "string"
+        },
+        "prompt_version": {
+          "default": "",
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "required_checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Checks",
+          "type": "array"
+        },
+        "rule_version": {
+          "default": "v1",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "rules_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules Path"
+        },
+        "rules_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules Sha256"
+        },
+        "sandbox_isolation": {
+          "default": "process",
+          "title": "Sandbox Isolation",
+          "type": "string"
+        },
+        "test_command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Test Command"
+        },
+        "test_report": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Test Report"
+        },
+        "test_selection": {
+          "default": "all",
+          "title": "Test Selection",
+          "type": "string"
+        }
+      },
+      "title": "GateConfiguration",
+      "type": "object"
+    },
+    "GateReport": {
+      "description": "One gate's conclusion plus everything it looked at.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "feedback": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feedback"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "spec",
+            "review",
+            "regression",
+            "metrics"
+          ],
+          "title": "Gate",
+          "type": "string"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
+        },
+        "policy_version": {
+          "default": "v1",
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "rule_version": {
+          "default": "v1",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "summary": {
+          "default": "",
+          "title": "Summary",
+          "type": "string"
+        },
+        "test_results": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TestResults"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tool_reports": {
+          "items": {
+            "$ref": "#/$defs/ToolReport"
+          },
+          "title": "Tool Reports",
+          "type": "array"
+        },
+        "trace_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trace Id"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        },
+        "verifier_report": {
+          "additionalProperties": true,
+          "title": "Verifier Report",
+          "type": "object"
+        }
+      },
+      "required": [
+        "gate",
+        "verdict"
+      ],
+      "title": "GateReport",
+      "type": "object"
+    },
+    "LLMCallRecord": {
+      "properties": {
+        "attempts": {
+          "default": 1,
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "estimated_cost_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Estimated Cost Usd"
+        },
+        "input_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Tokens"
+        },
+        "latency_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency S"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "output_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Tokens"
+        },
+        "prompt_version": {
+          "default": "v1",
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "protocol": {
+          "default": "openai",
+          "enum": [
+            "anthropic",
+            "openai"
+          ],
+          "title": "Protocol",
+          "type": "string"
+        },
+        "provider": {
+          "default": "deepseek",
+          "title": "Provider",
+          "type": "string"
+        },
+        "schema_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema Name"
+        },
+        "schema_valid": {
+          "default": true,
+          "title": "Schema Valid",
+          "type": "boolean"
+        },
+        "total_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Tokens"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "LLMCallRecord",
+      "type": "object"
+    },
+    "PlatformReview": {
+      "description": "One review comment that was already on the change when this run started.\n\nA person -- or the platform's own assistant, which is why ``is_bot`` is\nrecorded rather than filtered -- has read this change and written something\ndown. That is evidence no gate produced and none can reproduce, so it\nenters as input: an unresolved thread is a question somebody asked and\nnobody answered, and merging past it automatically would be an automated\nverdict contradicting a human already on the record.\n\n``body`` is redacted and bounded in the model rather than in each adapter,\nbecause this is the one place text from outside the deployment enters the\ncontracts, and a credential pasted into a merge-request comment must not\nreach an artifact, a log or a model payload whichever platform it came from.",
+      "properties": {
+        "author": {
+          "default": "",
+          "title": "Author",
+          "type": "string"
+        },
+        "body": {
+          "default": "",
+          "title": "Body",
+          "type": "string"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "is_bot": {
+          "default": false,
+          "title": "Is Bot",
+          "type": "boolean"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "resolved": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved"
+        }
+      },
+      "title": "PlatformReview",
+      "type": "object"
+    },
+    "PolicyDecision": {
+      "description": "Structural guardrails evaluated before any gate spends model budget.",
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "changed_files": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Changed Files",
+          "type": "array"
+        },
+        "changed_lines": {
+          "default": 0,
+          "title": "Changed Lines",
+          "type": "integer"
+        },
+        "policy_version": {
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "required_checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Checks",
+          "type": "array"
+        },
+        "required_reviewers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Reviewers",
+          "type": "array"
+        },
+        "risk_level": {
+          "default": "low",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Risk Level",
+          "type": "string"
+        },
+        "violations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Violations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "allowed",
+        "policy_version"
+      ],
+      "title": "PolicyDecision",
+      "type": "object"
+    },
+    "RunMetrics": {
+      "description": "The minimum set of measurements a run records, in its evidence pack and the ledger.",
+      "properties": {
+        "ai_generated_ratio": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ai Generated Ratio"
+        },
+        "blocking_findings": {
+          "default": 0,
+          "title": "Blocking Findings",
+          "type": "integer"
+        },
+        "cycle_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cycle Time S"
+        },
+        "escaped_defects": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Escaped Defects"
+        },
+        "false_positives": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "False Positives"
+        },
+        "findings_by_severity": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Findings By Severity",
+          "type": "object"
+        },
+        "findings_total": {
+          "default": 0,
+          "title": "Findings Total",
+          "type": "integer"
+        },
+        "gates_blocked": {
+          "default": 0,
+          "title": "Gates Blocked",
+          "type": "integer"
+        },
+        "gates_run": {
+          "default": 0,
+          "title": "Gates Run",
+          "type": "integer"
+        },
+        "human_review_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Human Review Minutes"
+        },
+        "rework_count": {
+          "default": 0,
+          "title": "Rework Count",
+          "type": "integer"
+        },
+        "token_usage": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Token Usage",
+          "type": "object"
+        }
+      },
+      "title": "RunMetrics",
+      "type": "object"
+    },
+    "TestResults": {
+      "description": "The suite the regression gate ran, in counts a verdict can be read from.\n\n``available=False`` mirrors ``ToolReport.available``: the suite never\nstarted, so the counts below are not evidence about the code. The gate\nturns that into a block (fail closed), never into a pass.",
+      "properties": {
+        "available": {
+          "default": true,
+          "title": "Available",
+          "type": "boolean"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "errors": {
+          "default": 0,
+          "title": "Errors",
+          "type": "integer"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Code"
+        },
+        "failed": {
+          "default": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "failures": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Failures",
+          "type": "array"
+        },
+        "generated": {
+          "default": 0,
+          "title": "Generated",
+          "type": "integer"
+        },
+        "generated_failed": {
+          "default": 0,
+          "title": "Generated Failed",
+          "type": "integer"
+        },
+        "generated_failures": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Generated Failures",
+          "type": "array"
+        },
+        "passed": {
+          "default": 0,
+          "title": "Passed",
+          "type": "integer"
+        },
+        "report_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Report Path"
+        },
+        "runner": {
+          "default": "pytest",
+          "title": "Runner",
+          "type": "string"
+        },
+        "skipped": {
+          "default": 0,
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "stderr": {
+          "default": "",
+          "title": "Stderr",
+          "type": "string"
+        },
+        "stdout": {
+          "default": "",
+          "title": "Stdout",
+          "type": "string"
+        }
+      },
+      "title": "TestResults",
+      "type": "object"
+    },
+    "ToolDiagnostic": {
+      "description": "One located message a scanner produced.\n\nParsed by the scanner adapter, which owns each tool's output format. A gate\nneeds the location to answer the only question that keeps a review gate\nusable: did this land on a line the change actually added?",
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "ToolDiagnostic",
+      "type": "object"
+    },
+    "ToolReport": {
+      "description": "One command executed in the sandbox.\n\n``available=False`` means the tool never ran. That is not evidence about\nthe code: a gate that needs it must block rather than pass.",
+      "properties": {
+        "available": {
+          "default": true,
+          "title": "Available",
+          "type": "boolean"
+        },
+        "command": {
+          "title": "Command",
+          "type": "string"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/ToolDiagnostic"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Code"
+        },
+        "findings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "passed": {
+          "default": true,
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "report_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Report Path"
+        },
+        "stderr": {
+          "default": "",
+          "title": "Stderr",
+          "type": "string"
+        },
+        "stdout": {
+          "default": "",
+          "title": "Stdout",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "command"
+      ],
+      "title": "ToolReport",
+      "type": "object"
+    },
+    "Verdict": {
+      "description": "A gate's conclusion about one change.",
+      "enum": [
+        "pass",
+        "needs_human",
+        "blocked",
+        "skipped"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What ships with every decision: what ran, what it found, and why.",
+  "properties": {
+    "artifact_manifest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactManifest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "briefs": {
+      "items": {
+        "$ref": "#/$defs/BlockBrief"
+      },
+      "title": "Briefs",
+      "type": "array"
+    },
+    "change": {
+      "$ref": "#/$defs/ChangeRequest"
+    },
+    "configuration": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GateConfiguration"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "fingerprint": {
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "gate_reports": {
+      "items": {
+        "$ref": "#/$defs/GateReport"
+      },
+      "title": "Gate Reports",
+      "type": "array"
+    },
+    "llm_calls": {
+      "items": {
+        "$ref": "#/$defs/LLMCallRecord"
+      },
+      "title": "Llm Calls",
+      "type": "array"
+    },
+    "metrics": {
+      "$ref": "#/$defs/RunMetrics"
+    },
+    "policy_decision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PolicyDecision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "policy_version": {
+      "default": "v1",
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "rule_version": {
+      "default": "v1",
+      "title": "Rule Version",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "sandbox_isolation": {
+      "default": "process",
+      "title": "Sandbox Isolation",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "trace_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Trace Id"
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict",
+      "default": "pass"
+    }
+  },
+  "required": [
+    "run_id",
+    "change",
+    "fingerprint"
+  ],
+  "title": "honest-ci evidence pack",
+  "type": "object",
+  "x-schema-version": "v1"
+}
