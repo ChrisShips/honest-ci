@@ -556,6 +556,7 @@ make check     # ruff, mypy and pytest with coverage of at least 75%, as CI runs
 
 ```
 action.yml                 the GitHub Action
+action-requirements.txt    what the Action installs besides honest-ci, pinned with hashes (make lock)
 src/honest_ci/
   cli.py                   the honest-ci command
   runner.py                runs the gates in order: routing, retries, checkpoints

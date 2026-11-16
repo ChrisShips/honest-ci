@@ -65,14 +65,25 @@ runs:
 
     # From this Action's own directory, so the honest-ci that judges the pull
     # request is the release the workflow pinned rather than whatever a package
-    # index serves that day. Its dependencies still come from the index.
+    # index serves that day. Its dependencies, and the setuptools that builds
+    # it, come from the index, but only as action-requirements.txt pins them:
+    # every package at one version and with its sha256, so a new release, or a
+    # file swapped on the index, fails the install instead of running here
+    # with this job's token. Wheels only, because building an sdist would run
+    # its code before anything had checked it. honest-ci itself goes in after,
+    # with no dependencies and no build isolation: isolation would fetch a
+    # setuptools of its own, one the lock never saw. pip check then confirms
+    # the pinned set is the one honest-ci asks for.
     - name: Install honest-ci
       shell: bash
       env:
         PYTHON: ${{ steps.python.outputs.python-path }}
       run: |
         "$PYTHON" -m venv "$RUNNER_TEMP/honest-ci/venv"
-        "$RUNNER_TEMP/honest-ci/venv/bin/python" -m pip install --quiet --disable-pip-version-check "$GITHUB_ACTION_PATH"
+        pip=("$RUNNER_TEMP/honest-ci/venv/bin/python" -m pip --quiet --disable-pip-version-check)
+        "${pip[@]}" install --require-hashes --only-binary :all: --requirement "$GITHUB_ACTION_PATH/action-requirements.txt"
+        "${pip[@]}" install --no-deps --no-build-isolation "$GITHUB_ACTION_PATH"
+        "${pip[@]}" check
 
     # The rules and the policy judge the change, so they are read at the base
     # commit instead of being taken from it: a pull request that loosened a

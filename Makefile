@@ -7,7 +7,7 @@ PYTEST := $(if $(wildcard $(BIN)/pytest),$(BIN)/pytest,pytest)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help venv install lint type test cov check acceptance clean
+.PHONY: help venv install lint type test cov check acceptance lock clean
 
 help: ## Show the available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -42,6 +42,19 @@ acceptance: ## Acceptance on a real machine: Docker + Maven run the three termin
 	@# in the image: correct, but not the question this command means to answer.
 	docker pull $${HONEST_CI_JAVA_DOCKER_IMAGE:-maven:3.9-eclipse-temurin-21}
 	$(PYTEST) -m docker -v -p no:cacheprovider tests/integration
+
+# What action.yml installs, pinned with hashes: the dependencies in [project]
+# and the setuptools in [build-system], read from pyproject.toml so the lock
+# can't ask for something else. Python 3.12 is the one the Action sets up;
+# --universal keeps the pins good on both runners it supports, Linux and
+# macOS. A pin already in the file is kept unless pyproject.toml rules it out,
+# so this only moves a version when asked to: UPGRADE=1 takes the newest that
+# pyproject.toml allows. Needs uv (https://docs.astral.sh/uv/).
+UV ?= uv
+lock: ## Pin what the Action installs, with hashes, in action-requirements.txt
+	$(PY) -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["build-system"]["requires"]))' \
+	  | $(UV) pip compile pyproject.toml - --quiet --universal --python-version 3.12 --generate-hashes \
+	      $(if $(UPGRADE),--upgrade) --custom-compile-command "make lock" --output-file action-requirements.txt
 
 clean: ## Remove the caches and runtime output
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov

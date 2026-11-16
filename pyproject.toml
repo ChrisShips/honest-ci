@@ -5,12 +5,13 @@
 # built wheels by itself since 70.1.
 #
 # Capped, like the dependencies below, because a release can't be changed
-# once it's out, yet what it installs is resolved again each time: action.yml
-# installs this package on every run, and the README's `pipx run ... init`
-# for every new reader, each with the newest versions the index has that day.
-# Both install into an environment of their own, so a cap can't clash with
-# what another package requires. The other usual cost of a cap, a new Python
-# that only newer versions support, can't reach the Action, which pins
+# once it's out, yet what it installs may be resolved again each time: the
+# README's `pipx run ... init` does so for every new reader, with the newest
+# versions the index has that day. (action.yml doesn't: it installs what
+# action-requirements.txt pins, and `make lock` keeps those pins within these
+# caps.) pipx installs into an environment of its own, so a cap can't clash
+# with what another package requires. The other usual cost of a cap, a new
+# Python that only newer versions support, can't reach the Action, which pins
 # Python 3.12; pipx runs on the reader's own Python, where meeting one would
 # take a release that raises the cap.
 requires = ["setuptools>=77,<85"]
@@ -51,7 +52,8 @@ classifiers = [
 # Capped where breaking changes may start, for the reasons given at
 # [build-system]: pydantic at its next major version, and typer, still at
 # 0.x, at its next minor one. Their own dependencies, rich among them, are
-# not capped here: v0.1.1 pins the whole set, with hashes, in a lock file.
+# not capped here. The Action doesn't resolve them at all: it installs the
+# set action-requirements.txt pins, each with its hash (`make lock`).
 dependencies = [
   "pydantic>=2,<3",
   "typer>=0.12,<0.29",
