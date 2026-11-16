@@ -22,7 +22,7 @@ from .runner import GateRunner, verify_change
 from .settings import Settings
 from .state import RunState
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "GATE_SEQUENCE",

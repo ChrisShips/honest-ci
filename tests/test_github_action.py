@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import tomllib
@@ -25,6 +26,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
 from honest_ci import __version__
 from honest_ci.actions import workflow_template
@@ -38,6 +41,8 @@ from .workflow_yaml import UnsupportedYaml, load
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "src" / "honest_ci"
 ACTION = REPO / "action.yml"
+#: What the Action installs besides honest-ci, pinned with hashes by ``make lock``.
+LOCK = REPO / "action-requirements.txt"
 TEMPLATE = PACKAGE / "resources" / "github-workflow.yml"
 
 #: What run-pr does with the token, one permission each: read the code and the
@@ -229,15 +234,94 @@ def test_no_script_has_an_expression_spliced_into_it() -> None:
         assert step["shell"] == "bash", step.get("name")
 
 
-def test_honest_ci_is_installed_from_the_action_itself() -> None:
-    """Not from a package index: what judges the pull request is the release the workflow pinned."""
+def install_commands() -> list[list[str]]:
+    """The Install step's pip commands, each as the words after ``"${pip[@]}"``."""
 
     script = action_step(INSTALL)["run"]
-    install = [line for line in script.splitlines() if " -m pip install " in line]
+    return [
+        shlex.split(line)[1:] for line in script.splitlines() if line.startswith('"${pip[@]}" ')
+    ]
+
+
+def test_honest_ci_is_installed_from_the_action_itself() -> None:
+    """Not from a package index: what judges the pull request is the release the workflow pinned.
+
+    With no dependencies of its own and no build isolation, so that nothing
+    comes in beside it that the lock did not pin.
+    """
+
+    script = action_step(INSTALL)["run"]
+    package = [words for words in install_commands() if words[-1] == "$GITHUB_ACTION_PATH"]
 
     assert f'"{VENV}"' in script
-    assert len(install) == 1
-    assert install[0].split()[-1] == '"$GITHUB_ACTION_PATH"'
+    assert f'pip=("{VENV}/bin/python" -m pip ' in script
+    assert len(package) == 1
+    assert {"install", "--no-deps", "--no-build-isolation"} <= set(package[0])
+
+
+def test_its_dependencies_come_only_as_the_lock_pins_them() -> None:
+    """Every package at the version the lock names and with a hash it lists.
+
+    Before honest-ci goes in, since installing honest-ci adds nothing; then
+    ``pip check``, so a lock that fell behind pyproject.toml stops the run.
+    """
+
+    commands = install_commands()
+    [pinned] = [words for words in commands if "--require-hashes" in words]
+
+    assert pinned[0] == "install"
+    assert pinned[pinned.index("--requirement") + 1] == f"$GITHUB_ACTION_PATH/{LOCK.name}"
+    assert pinned[pinned.index("--only-binary") + 1] == ":all:"
+    assert commands.index(pinned) == 0
+    assert commands[-1] == ["check"]
+
+
+def locked() -> dict[str, tuple[str, list[str]]]:
+    """The lock as ``{name: (version, hashes)}``, names normalized as PEP 503 does."""
+
+    pins: dict[str, tuple[str, list[str]]] = {}
+    text = re.sub(r"\\\n", " ", LOCK.read_text(encoding="utf-8"))
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        requirement, _, options = line.partition(" --hash=")
+        match = re.fullmatch(r"([A-Za-z0-9._-]+)==([^\s;]+)(?:\s*;.*)?", requirement.strip())
+        assert match, f"{LOCK.name} has an entry that pins no version: {line!r}"
+        hashes = re.findall(r"sha256:([0-9a-f]{64})", "--hash=" + options)
+        pins[canonicalize_name(match[1])] = (match[2], hashes)
+    return pins
+
+
+def test_every_package_in_the_lock_has_one_version_and_its_hashes() -> None:
+    pins = locked()
+
+    # Named, so that a reader that stopped finding entries cannot pass vacuously.
+    assert {"pydantic", "pydantic-core", "typer", "rich", "setuptools"} <= set(pins)
+    assert [name for name, (_, hashes) in pins.items() if not hashes] == []
+
+
+def test_the_lock_pins_what_pyproject_asks_for() -> None:
+    """The dependencies and the build requirement, each at a version its range allows.
+
+    A range moved in pyproject.toml without ``make lock`` would otherwise ship
+    a release that installs what its own metadata rules out.
+    """
+
+    pyproject = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    wanted = [
+        Requirement(text)
+        for text in pyproject["project"]["dependencies"] + pyproject["build-system"]["requires"]
+    ]
+    pins = locked()
+
+    for requirement in wanted:
+        name = canonicalize_name(requirement.name)
+        assert name in pins, f"{LOCK.name} does not pin {name}; run make lock"
+        version, _ = pins[name]
+        assert requirement.specifier.contains(version, prereleases=True), (
+            f"{LOCK.name} pins {name}=={version}, outside {requirement}; run make lock"
+        )
 
 
 def test_the_exit_codes_the_action_documents_are_the_ones_run_pr_uses() -> None:

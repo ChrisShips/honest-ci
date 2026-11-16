@@ -90,7 +90,7 @@ link to the line.
 At the root of your repository:
 
 ```bash
-pipx run --spec git+https://github.com/ChrisShips/honest-ci@v0.1.0 honest-ci init --github
+pipx run --spec git+https://github.com/ChrisShips/honest-ci@v0.1.1 honest-ci init --github
 ```
 
 It writes three files, and leaves alone any that already exist:
@@ -179,7 +179,7 @@ jobs:
 
       # Pinned to a release tag. For a pin nobody can move, replace the tag
       # with the commit SHA it points to.
-      - uses: ChrisShips/honest-ci@v0.1.0
+      - uses: ChrisShips/honest-ci@v0.1.1
         with:
           # Needed on an organization's private or internal repository, and on
           # a personal account's private one where other people open pull
@@ -211,7 +211,7 @@ try the Action on, and says what each pull request there should show.
 before there is a pull request. With pipx and Python 3.11 or later:
 
 ```bash
-pipx install git+https://github.com/ChrisShips/honest-ci@v0.1.0
+pipx install git+https://github.com/ChrisShips/honest-ci@v0.1.1
 ```
 
 The Python demo is the quickest way to see it catch something. In its
@@ -219,7 +219,7 @@ The Python demo is the quickest way to see it catch something. In its
 and the agent deletes the test:
 
 ```bash
-git clone --depth 1 --branch v0.1.0 https://github.com/ChrisShips/honest-ci
+git clone --depth 1 --branch v0.1.1 https://github.com/ChrisShips/honest-ci
 cp -r honest-ci/examples/python-agent-demo /tmp/honest-ci-demo && cd /tmp/honest-ci-demo && git init -q && git add -A && git commit -qm baseline
 export HONEST_CI_DISABLED_GATES=regression
 git apply scenarios/delete-failing-test.patch && honest-ci verify; echo "exit code $?"
@@ -483,7 +483,7 @@ Name a provider and give it its API key, from a repository secret, as
 environment variables on the Action's step:
 
 ```yaml
-      - uses: ChrisShips/honest-ci@v0.1.0
+      - uses: ChrisShips/honest-ci@v0.1.1
         with:
           license-key: ${{ secrets.HONEST_CI_LICENSE_KEY }}
         env:
@@ -556,6 +556,7 @@ make check     # ruff, mypy and pytest with coverage of at least 75%, as CI runs
 
 ```
 action.yml                 the GitHub Action
+action-requirements.txt    what the Action installs besides honest-ci, pinned with hashes (make lock)
 src/honest_ci/
   cli.py                   the honest-ci command
   runner.py                runs the gates in order: routing, retries, checkpoints

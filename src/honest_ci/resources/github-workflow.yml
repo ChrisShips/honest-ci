@@ -50,7 +50,7 @@ jobs:
 
       # Pinned to a release tag. For a pin nobody can move, replace the tag
       # with the commit SHA it points to.
-      - uses: ChrisShips/honest-ci@v0.1.0
+      - uses: ChrisShips/honest-ci@v0.1.1
         with:
           # Needed on an organization's private or internal repository, and on
           # a personal account's private one where other people open pull
