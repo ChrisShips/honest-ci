@@ -2107,8 +2107,12 @@ class _Threshold:
     ceiling: bool = False
 
 
+#: Separator between a flag and its value, on a shell line (``=`` or space) or
+#: across adjacent elements of an argv list (``"-k", "not slow"``).
+_FLAG_SEP = r"(?:=|\s+|[\"']\s*,\s*)"
+
 _COVERAGE_FLAG = re.compile(
-    r"(?<![\w-])(?P<key>--cov-fail-under|--fail-under)(?:=|\s+)[\"']?(?P<value>\d+(?:\.\d+)?)"
+    rf"(?<![\w-])(?P<key>--cov-fail-under|--fail-under){_FLAG_SEP}[\"']?(?P<value>\d+(?:\.\d+)?)"
 )
 _FAIL_UNDER = re.compile(r"^\s*(?P<key>fail_under)\s*[=:]\s*[\"']?(?P<value>\d+(?:\.\d+)?)")
 _JS_COVERAGE_METRIC = re.compile(
@@ -2185,18 +2189,18 @@ _TEST_COMMAND = (
 _EXCLUSIONS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "--ignore",
-        re.compile(r"(?<![\w-])--(?:ignore|ignore-glob)(?:=|\s+)[\"']?(?P<value>[^\s\"',\]]+)"),
+        re.compile(rf"(?<![\w-])--(?:ignore|ignore-glob){_FLAG_SEP}[\"']?(?P<value>[^\s\"',\]]+)"),
         "Excludes `{value}` from test collection.",
     ),
     (
         "--deselect",
-        re.compile(r"(?<![\w-])--deselect(?:=|\s+)[\"']?(?P<value>[^\s\"',\]]+)"),
+        re.compile(rf"(?<![\w-])--deselect{_FLAG_SEP}[\"']?(?P<value>[^\s\"',\]]+)"),
         "Deselects `{value}` from the test run.",
     ),
     (
         "-k",
         re.compile(
-            r"(?<![\w-])-k(?:\s*=\s*|\s+)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
+            r"(?<![\w-])-k(?:\s*=\s*|\s+|[\"']\s*,\s*)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
             r"(?P=quote)"
         ),
         'Filters tests out by keyword (`-k "{value}"`).',
@@ -2204,7 +2208,7 @@ _EXCLUSIONS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "-m",
         re.compile(
-            r"(?<![\w-])-m(?:\s*=\s*|\s+)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
+            r"(?<![\w-])-m(?:\s*=\s*|\s+|[\"']\s*,\s*)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
             r"(?P=quote)"
         ),
         'Filters tests out by marker (`-m "{value}"`).',

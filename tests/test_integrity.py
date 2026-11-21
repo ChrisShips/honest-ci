@@ -1900,6 +1900,30 @@ def test_a_test_run_that_leaves_tests_out_is_reported_on_the_head_side(
     assert hits[0].detail == detail
 
 
+def test_pytest_flags_written_as_argument_lists_are_reported() -> None:
+    # pyproject.toml addopts and noxfile.py session.run(...) pass flags and
+    # values as separate list elements: ["-k", "not slow"], ["--ignore", "..."].
+    pyproject_before = '[tool.pytest.ini_options]\naddopts = ["--cov=shop", "--cov-fail-under", "90"]\n'
+    keyword_after = pyproject_before.replace('"90"]', '"90", "-k", "not slow"]')
+    ignore_after = pyproject_before.replace('"90"]', '"90", "--ignore", "tests/slow"]')
+    lowered_after = pyproject_before.replace('"90"]', '"75"]')
+    nox_before = 'def tests(session):\n    session.run("pytest")\n'
+    nox_after = 'def tests(session):\n    session.run("pytest", "-m", "not integration")\n'
+
+    assert [hit.detail for hit in detect(edit("pyproject.toml", pyproject_before, keyword_after))] == [
+        'Filters tests out by keyword (`-k "not slow"`).'
+    ]
+    assert [hit.detail for hit in detect(edit("pyproject.toml", pyproject_before, ignore_after))] == [
+        "Excludes `tests/slow` from test collection."
+    ]
+    assert [hit.detail for hit in detect(edit("pyproject.toml", pyproject_before, lowered_after))] == [
+        "Loosens the coverage threshold: `--cov-fail-under` 90 → 75."
+    ]
+    assert [hit.detail for hit in detect(edit("noxfile.py", nox_before, nox_after))] == [
+        'Filters tests out by marker (`-m "not integration"`).'
+    ]
+
+
 def test_an_ignore_flag_for_a_linter_or_in_a_comment_is_not_an_exclusion() -> None:
     before = "lint:\n\truff check src tests\n"
     linter = before.replace("ruff check src tests", "ruff check --ignore E501 src tests")
