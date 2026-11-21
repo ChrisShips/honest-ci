@@ -1673,6 +1673,15 @@ def test_a_regular_expression_is_one_literal() -> None:
     assert "(`/receipts\\/*\\.txt/` → `/receipts\\/*\\.pdf/`)" in hits[0].detail
 
 
+def test_a_nul_byte_in_a_test_line_does_not_collide_with_a_literal_placeholder() -> None:
+    # Git only sniffs the first 8 KB of a file for binary content, so a NUL byte
+    # past that boundary enters a text diff verbatim. Read bare into ``shape``,
+    # it matched the NUL placeholder used for literals and crashed pairing.
+    after = PY.replace("assert total([2.5]) == 3", "assert total([2.5]) == \x00")
+
+    assert detect(edit(PY_PATH, PY, after) + CODE) == []
+
+
 # ── e. loosened_threshold ────────────────────────────────────────────────────
 
 PYPROJECT = """\

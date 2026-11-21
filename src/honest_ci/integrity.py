@@ -292,11 +292,23 @@ def _lex(rows: Iterable[_Row], language: _Language) -> None:
         row.reading, still_open = _read(row.text, language, still_open)
 
 
+def _shape_token(value: str) -> str:
+    """Escape raw NUL bytes so they never collide with the ``_LITERAL`` sentinel."""
+
+    # Git only sniffs the first 8 KB of a file for binary content, so a NUL byte
+    # past that boundary reaches ``_read`` as plain text. Left bare in ``shape``
+    # or ``tokens``, it matches ``_LITERAL`` without adding an entry to
+    # ``literals``, breaking their 1-to-1 correspondence.
+    if _LITERAL in value or "\x01" in value:
+        return value.replace("\x01", "\x011").replace(_LITERAL, "\x010")
+    return value
+
+
 def _read(
     text: str, language: _Language, still_open: _Open | None
 ) -> tuple[_Reading, _Open | None]:
     if len(text) > MAX_SCANNED_LINE_CHARS:
-        return _Reading(code="", shape=text), None
+        return _Reading(code="", shape=_shape_token(text)), None
     code: list[str] = []
     shape: list[str] = []
     literals: list[tuple[str, tuple[str, object]]] = []
@@ -360,7 +372,7 @@ def _read(
             literals.append((value, ("keyword", value)))
         else:
             code.append(value)
-            shape.append(value)
+            shape.append(_shape_token(value))
     return _Reading("".join(code), "".join(shape), tuple(literals), tuple(shape)), still_open
 
 
