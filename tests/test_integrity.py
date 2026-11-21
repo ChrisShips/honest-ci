@@ -597,6 +597,27 @@ def test_a_java_test_whose_annotation_is_removed_no_longer_runs() -> None:
     )
 
 
+def test_a_removed_java_parameterized_test_with_multiline_annotation_is_a_deleted_test() -> None:
+    parameterized = (
+        "\n    @ParameterizedTest\n"
+        "    @CsvSource({\n"
+        '        "2.5, 3",\n'
+        '        "0.5, 1"\n'
+        "    })\n"
+        "    void roundsValues(double raw, int expected) {\n"
+        "        assertEquals(expected, Cart.total(raw));\n"
+        "    }\n"
+    )
+    before = JAVA_HEAD + parameterized + "}\n"
+
+    hits = detect(edit(JAVA_PATH, before, JAVA_HEAD + "}\n"))
+
+    assert [(hit.check, hit.file, hit.line, hit.side) for hit in hits] == [
+        ("deleted_test", JAVA_PATH, 18, "base")
+    ]
+    assert "`roundsValues`" in hits[0].detail
+
+
 def test_a_python_test_renamed_out_of_collection_is_a_deletion() -> None:
     after = PY.replace("def test_rounds_half_up", "def _test_rounds_half_up")
 

@@ -1190,8 +1190,16 @@ def _java_defs(view: Sequence[_Row]) -> Iterator[_TestDef]:
         annotation = _JAVA_TEST_ANNOTATION.search(_code(row))
         if annotation is None:
             continue
-        for candidate in view[index : index + _JAVA_ANNOTATION_REACH]:
+        # Follow multi-line annotations (such as @CsvSource({...}) under
+        # @ParameterizedTest) until their brackets close, while still bounding
+        # top-level gap lines by ``_JAVA_ANNOTATION_REACH``.
+        depth = 0
+        top_level = 0
+        for candidate in view[index : index + _MAX_TABLE_LINES]:
             code = _code(candidate)
+            if depth > 0:
+                depth = max(0, depth + _balance(code))
+                continue
             declaration = _JAVA_DECLARATION.match(code)
             if declaration is not None and declaration["type"] not in _JAVA_STATEMENT_WORDS:
                 claimed.add(candidate)
@@ -1201,6 +1209,10 @@ def _java_defs(view: Sequence[_Row]) -> Iterator[_TestDef]:
                 break
             if candidate is not row and code.strip() and not _JAVA_ANNOTATION.match(code):
                 break
+            top_level += 1
+            if top_level >= _JAVA_ANNOTATION_REACH:
+                break
+            depth = max(0, _balance(code))
     # JUnit 3: no annotation, the name is what makes it a test.
     for row in view:
         match = _JAVA_JUNIT3.match(_code(row))
