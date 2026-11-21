@@ -1129,6 +1129,37 @@ def test_a_marker_in_a_comment_string_or_name_is_not_a_skip(
     assert detect(edit(path, before, after)) == []
 
 
+def test_an_escaped_closing_quote_at_line_end_keeps_a_multiline_string_open() -> None:
+    # A line ending with an escaped delimiter (``\` `` in JS, ``\"""`` in
+    # Python) leaves the string open across the newline; only an unescaped
+    # delimiter closes it. Go raw strings have no escapes, so ``\` `` closes.
+    js_after = above(
+        JS,
+        "expect(total([2.5]))",
+        'const usage = `prefix \\`\n  it.only("inside")\n`;',
+    )
+    py_after = above(
+        PY,
+        "assert total([2.5]) == 3",
+        'usage = """prefix \\"""\n@pytest.mark.skip(reason="inside")\n"""',
+    )
+    py_raw_after = above(
+        PY,
+        "assert total([2.5]) == 3",
+        'usage = r"""prefix \\"""\n@pytest.mark.skip(reason="inside")\n"""',
+    )
+    go_after = above(
+        GO,
+        "want := 3.0",
+        't.Log(`ends with backslash \\`)\nt.Skip("real skip")',
+    )
+
+    assert detect(edit(JS_PATH, JS, js_after)) == []
+    assert detect(edit(PY_PATH, PY, py_after)) == []
+    assert detect(edit(PY_PATH, PY, py_raw_after)) == []
+    assert found(edit(GO_PATH, GO, go_after)) == [("skip_or_focus", GO_PATH, 13, "head")]
+
+
 def test_changing_the_reason_of_an_existing_skip_is_not_a_new_skip() -> None:
     before = above(PY, PY_TEST, '@pytest.mark.skip(reason="flaky")')
     after = before.replace('reason="flaky"', 'reason="flaky on CI"')

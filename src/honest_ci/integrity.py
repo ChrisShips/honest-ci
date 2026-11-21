@@ -383,17 +383,17 @@ def _left_open(token: str, language: _Language) -> _Open | None:
         return None if len(token) >= 4 and token.endswith("*/") else _Open("*/", comment=True)
     body = token.lstrip("rRbBuUfF")
     if language == "python" and body[:3] in ('"""', "'''"):
-        if len(body) >= 6 and body.endswith(body[:3]):
-            return None
-        raw = "r" in token[: len(token) - len(body)].lower()
-        return _Open(body[:3], comment=False, escapes=not raw)
+        # Even in raw Python strings a backslash escapes the quote right after
+        # it for tokenization, so ``_closing`` decides whether the line closed
+        # the delimiter rather than a bare ``endswith``.
+        candidate = _Open(body[:3], comment=False, escapes=True)
+        return None if _closing(body[3:], candidate) is not None else candidate
     if language == "java" and body.startswith('"""'):
         # A text block's opening line cannot hold its closing delimiter.
         return _Open('"""', comment=False, escapes=True)
     if language in ("javascript", "go") and body.startswith("`"):
-        if len(body) >= 2 and body.endswith("`"):
-            return None
-        return _Open("`", comment=False, escapes=language == "javascript")
+        candidate = _Open("`", comment=False, escapes=language == "javascript")
+        return None if _closing(body[1:], candidate) is not None else candidate
     return None
 
 
