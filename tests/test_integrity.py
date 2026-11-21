@@ -840,6 +840,52 @@ def test_a_one_line_each_test_is_a_test_too() -> None:
     assert found(edit(JS_PATH, before, JS_HEAD + "});\n")) == [("deleted_test", JS_PATH, 8, "base")]
 
 
+JS_TABLE = """\
+import { total } from "./cart";
+
+describe("total", () => {
+  test.each([
+    { name: "empty cart", items: [], expected: 0 },
+    { name: "rounds half up", items: [2.5], expected: 3 },
+  ])("$name", ({ items, expected }) => {
+    expect(total(items)).toBe(expected);
+  });
+});
+"""
+JS_HALF_UP_CASE = '    { name: "rounds half up", items: [2.5], expected: 3 },\n'
+
+
+def test_a_named_case_removed_from_a_js_each_table_is_a_deleted_test() -> None:
+    hits = detect(edit(JS_PATH, JS_TABLE, JS_TABLE.replace(JS_HALF_UP_CASE, "")))
+
+    assert [(hit.check, hit.line) for hit in hits] == [("deleted_test", 6)]
+    assert hits[0].detail == (
+        "Case `rounds half up` is removed from its test table, and no case by that name is "
+        "added back in this change."
+    )
+
+
+def test_renaming_a_js_each_case_is_neither_a_deletion_nor_a_changed_expectation() -> None:
+    renamed = JS_TABLE.replace('"rounds half up"', '"rounds halves up"')
+    changed_value = JS_TABLE.replace("expected: 3", "expected: 2")
+    replaced = JS_TABLE.replace(
+        JS_HALF_UP_CASE, '    { name: "two items", items: [1, 2], expected: 3 },\n'
+    )
+
+    assert detect(edit(JS_PATH, JS_TABLE, renamed) + CODE) == []
+    assert found(edit(JS_PATH, JS_TABLE, changed_value) + CODE) == [
+        ("changed_expectation", JS_PATH, 6, "base")
+    ]
+    assert found(edit(JS_PATH, JS_TABLE, replaced) + CODE) == [("deleted_test", JS_PATH, 6, "base")]
+
+
+def test_a_js_fixture_array_is_not_a_test_table() -> None:
+    before = JS + '\nconst shoppers = [\n  { name: "ann" },\n  { name: "bo" },\n];\n'
+    after = before.replace('  { name: "bo" },\n', "")
+
+    assert detect(edit(JS_PATH, before, after)) == []
+
+
 JUNIT3 = """\
 package shop;
 
