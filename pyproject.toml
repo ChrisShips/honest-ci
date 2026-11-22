@@ -82,7 +82,7 @@ otel = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ChrisShips/honest-ci"
+Homepage = "https://honest-ci.dev"
 Source = "https://github.com/ChrisShips/honest-ci"
 Issues = "https://github.com/ChrisShips/honest-ci/issues"
 

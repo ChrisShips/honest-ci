@@ -13,19 +13,18 @@ This list covers that side.
 
 ## 1. Build the repository
 
-You need `bash`, `git` and honest-ci on `PATH`. `pip install -e .` in the
-honest-ci repository installs it; alternatively, set `HONEST_CI` to its path.
+You need `bash`, `git` and honest-ci on `PATH`. `pipx install honest-ci==0.1.1`
+installs it; alternatively, set `HONEST_CI` to its path. From a clone of the
+honest-ci repository:
 
 ```bash
-examples/python-agent-demo/github-demo.sh --action-ref main /tmp/honest-ci-demo
+examples/python-agent-demo/github-demo.sh /tmp/honest-ci-demo
 ```
 
 The workflow that `honest-ci init --github` writes calls the Action at the
-release tag of the honest-ci that wrote it, such as `v0.1.0`. Until that tag
-exists on `ChrisShips/honest-ci`, every run fails at "Set up job" because GitHub
-cannot resolve the action. `--action-ref main` points the workflow at the
-`main` branch instead; a commit SHA works too. Once the release is tagged, leave
-the flag out, so that the demo also checks the release the workflow pins.
+release tag of the honest-ci that wrote it, `v0.1.1` here. To try a commit that
+isn't released yet, `--action-ref` points the workflow at another branch, tag
+or commit SHA instead.
 
 | Branch | What it holds |
 |---|---|
@@ -39,19 +38,14 @@ the flag out, so that the demo also checks the release the workflow pins.
 
 1. Create an empty repository on GitHub, with no README, license or
    `.gitignore`.
-2. While `ChrisShips/honest-ci` is private, the demo repository has to be
-   private and owned by the same account. Also, honest-ci's **Settings →
-   Actions → General → Access** has to let that account's repositories use it.
-   Otherwise every run fails at "Set up job" because GitHub cannot resolve the
-   action.
-3. Push every branch from the built repository, and check that `main` is the
+2. Push every branch from the built repository, and check that `main` is the
    default branch:
 
    ```bash
    cd /tmp/honest-ci-demo && git remote add origin git@github.com:<owner>/honest-ci-demo.git && git push -u origin --all
    ```
 
-4. Open the repository's **Actions** tab. If it says "Workflows aren't being
+3. Open the repository's **Actions** tab. If it says "Workflows aren't being
    run on this repository", click **Enable Actions on this repository**. A new
    repository can start out like this while the API reports Actions as
    enabled, and a pull request opened before then starts no run at all, not
@@ -217,13 +211,14 @@ says it was given before this conclusion was published, not on another commit.
 **If the comment says "No approval was applied"**, note the reason it quotes.
 To decide whether an approval counts, the Action's token reads each review's
 commit and whether its author can push. If GitHub refuses the token either one,
-no approval can count on any pull request, so this needs fixing before
-release.
+no approval can count on any pull request. Please open an issue with the
+reason the comment quotes.
 
 ## 7. A pull request from a fork
 
-This step works only once both `ChrisShips/honest-ci` and the demo repository
-are public, because a public repository cannot call an action in a private one.
+Make the demo repository public for this step. On a private repository, GitHub
+runs workflows for pull requests from forks only if the repository's Actions
+settings allow it.
 
 1. Fork the demo repository from a second account, or into an organization you
    own, since an account cannot fork its own repository. Clear **Copy the
