@@ -4,7 +4,7 @@ honest-ci is a GitHub Action that notices when a pull request gets its tests to
 pass by deleting, skipping or rewriting them, and holds that pull request for a
 person, with the evidence.
 
-![A pull request deletes the test it broke. The tests still pass, and honest-ci holds the pull request for a person.](docs/demo.gif)
+![A pull request deletes the test it broke. The tests still pass, and honest-ci holds the pull request for a person.](https://raw.githubusercontent.com/ChrisShips/honest-ci/main/docs/demo.gif)
 
 About one pull request in eleven deletes a test, skips one, takes out
 assertions or changes an expected value. That held for coding agents and for
@@ -19,7 +19,7 @@ It decides from the diff alone, with deterministic code: no model, no Docker
 and no test setup are needed for a first install. A model can be added to
 explain and to read rules that code can't, but it never decides.
 
-honest-ci is source-available under the [Fair Core License](LICENSE)
+honest-ci is source-available under the [Fair Core License](https://github.com/ChrisShips/honest-ci/blob/main/LICENSE)
 (FCL-1.0-ALv2). It is free on public repositories and on your own private
 ones; a team's private repository needs a subscription after a 14-day trial.
 See [License](#license).
@@ -79,12 +79,12 @@ Beside the test-integrity rules:
   Actions has no event for it. Re-run the latest honest-ci run, or push a
   commit, and the new run reads the threads again.
 
-[bench/](bench/README.md) measures how often these checks fire on pull
+[bench/](https://github.com/ChrisShips/honest-ci/blob/main/bench/README.md) measures how often these checks fire on pull
 requests that coding agents opened in public repositories, next to pull
 requests people opened in the same repositories at the same time. On 2,717
 pull requests from July and August 2026, a person decided the label of every
 flag, one at a time, and 93.6% of the flags were true statements about the
-diff. [Every label](bench/data/README.md) is published, with its reason and a
+diff. [Every label](https://github.com/ChrisShips/honest-ci/blob/main/bench/data/README.md) is published, with its reason and a
 link to the line.
 
 ## Install it on GitHub
@@ -106,7 +106,7 @@ It writes three files, and leaves alone any that already exist:
   the sensitive paths.
 
 Without pipx, copy the same three files from
-[src/honest_ci/resources/](src/honest_ci/resources/): `github-workflow.yml` to
+[src/honest_ci/resources/](https://github.com/ChrisShips/honest-ci/tree/main/src/honest_ci/resources): `github-workflow.yml` to
 `.github/workflows/honest-ci.yml`, and the two TOML files to the repository
 root.
 
@@ -206,9 +206,9 @@ jobs:
           HONEST_CI_DISABLED_GATES: regression
 ```
 
-[examples/python-agent-demo](examples/python-agent-demo/README.md) is a small
+[examples/python-agent-demo](https://github.com/ChrisShips/honest-ci/blob/main/examples/python-agent-demo/README.md) is a small
 shop whose tests an agent weakens in three ways. Its
-[GITHUB.md](examples/python-agent-demo/GITHUB.md) builds a repository from it to
+[GITHUB.md](https://github.com/ChrisShips/honest-ci/blob/main/examples/python-agent-demo/GITHUB.md) builds a repository from it to
 try the Action on, and says what each pull request there should show.
 
 ## Try it locally
@@ -236,7 +236,7 @@ Docker, as the GitHub workflow does. `honest-ci verify` judges the working tree
 against `HEAD`. It names the deleted test and exits with code 3: the change
 waits for a person. It also writes an evidence pack under
 `.honest-ci/artifacts/`, and `evidence.md` there is the readable version. The
-demo's [README](examples/python-agent-demo/README.md#run-it) has the other three
+demo's [README](https://github.com/ChrisShips/honest-ci/blob/main/examples/python-agent-demo/README.md#run-it) has the other three
 scenarios and how to reset the tree between them.
 
 ## What a pull request shows
@@ -424,7 +424,7 @@ last line of the comment names it and links to the workflow run:
 
 | File | What it holds |
 |---|---|
-| `evidence.json` | The whole run: the change, each gate's verdict and findings, the policy's decision, the configuration, every model call, and what could not be verified. Its format is [docs/evidence.schema.json](docs/evidence.schema.json), versioned and only ever added to. |
+| `evidence.json` | The whole run: the change, each gate's verdict and findings, the policy's decision, the configuration, every model call, and what could not be verified. Its format is [docs/evidence.schema.json](https://github.com/ChrisShips/honest-ci/blob/main/docs/evidence.schema.json), versioned and only ever added to. |
 | `evidence.md` | The same, for a person to read. |
 | `gate-*.json` | Each gate's report. |
 | `manifest.json` | The SHA-256 of every file above. |
@@ -521,7 +521,7 @@ accepted only for loopback hosts.
 
 Three switches narrow what the model is used for, each `0` to turn off:
 `HONEST_CI_MODEL_EXPLAIN`, `HONEST_CI_MODEL_JUDGMENT` and
-`HONEST_CI_MODEL_TESTGEN`. [.env.example](.env.example) lists every setting.
+`HONEST_CI_MODEL_TESTGEN`. [.env.example](https://github.com/ChrisShips/honest-ci/blob/main/.env.example) lists every setting.
 
 ## What's next
 
@@ -556,7 +556,7 @@ make install   # a virtual environment with an editable install
 make check     # ruff, mypy and pytest with coverage of at least 75%, as CI runs them
 ```
 
-[AGENTS.md](AGENTS.md) has the conventions for changing the code.
+[AGENTS.md](https://github.com/ChrisShips/honest-ci/blob/main/AGENTS.md) has the conventions for changing the code.
 
 ## Repository layout
 
@@ -583,7 +583,7 @@ docs/                      the evidence pack's schema and the demo GIF
 
 ## License
 
-honest-ci is source-available under the [Fair Core License](LICENSE)
+honest-ci is source-available under the [Fair Core License](https://github.com/ChrisShips/honest-ci/blob/main/LICENSE)
 (FCL-1.0-ALv2): you may use it for any purpose except offering a competing
 product or service, and each version becomes Apache-2.0 two years after its
 release. The license doesn't allow removing or getting around its license key
