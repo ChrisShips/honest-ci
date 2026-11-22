@@ -56,6 +56,11 @@ STILL_CHINESE = ("src/honest_ci/diffs.py", "tests/", "examples/java-junit5/")
 _FENCE = re.compile(r"^```(?P<language>\w*)\n(?P<body>.*?)^```$", re.MULTILINE | re.DOTALL)
 _LINK = re.compile(r"\]\((?P<target>[^)\s]+)\)")
 _HEADING = re.compile(r"^#{1,6} +(?P<title>.+?) *$", re.MULTILINE)
+#: A link to a file of this repository on GitHub, as the README writes them.
+_REPO_FILE = re.compile(
+    r"https://(?:github\.com/ChrisShips/honest-ci/(?:blob|tree)/main"
+    r"|raw\.githubusercontent\.com/ChrisShips/honest-ci/main)/(?P<path>[^#)\s]*)"
+)
 _CJK = re.compile(r"[　-〿㐀-鿿＀-￯]")
 
 
@@ -117,7 +122,7 @@ def test_the_license_is_called_source_available_never_open_source() -> None:
 
 
 def test_the_package_metadata_claims_no_osi_license() -> None:
-    """What PyPI shows: an English description, the README, and no license classifier.
+    """What PyPI shows: an English description, the README, no license classifier, and its links.
 
     The trove list has no entry for FCL, and every ``License ::`` entry would
     say something it is not: OSI-approved, or proprietary. SPDX has no
@@ -135,9 +140,10 @@ def test_the_package_metadata_claims_no_osi_license() -> None:
     assert not [c for c in project["classifiers"] if c.startswith("License ::")]
     assert project["readme"] == "README.md"
     assert not _CJK.search(project["description"])
-    assert set(project["urls"].values()) >= {"https://github.com/ChrisShips/honest-ci"}
+    assert project["urls"]["Homepage"] == "https://honest-ci.dev"
+    assert project["urls"]["Source"] == "https://github.com/ChrisShips/honest-ci"
     assert all(
-        url.startswith("https://github.com/ChrisShips/honest-ci")
+        url == "https://honest-ci.dev" or url.startswith("https://github.com/ChrisShips/honest-ci")
         for url in project["urls"].values()
     )
 
@@ -217,6 +223,24 @@ def test_every_relative_link_leads_somewhere() -> None:
             assert resolved.exists(), f"{page.relative_to(REPO)}: {target}"
             if anchor and resolved == README:
                 assert anchor in anchors, f"{page.relative_to(REPO)}: {target}"
+
+
+def test_the_readme_links_to_files_by_full_url() -> None:
+    """PyPI shows the README as well, and there a relative link leads nowhere.
+
+    pypi.org has none of the repository's files, so a relative link there is a
+    404 and a relative image doesn't load. A link from the README to a file is
+    a full URL to it on GitHub, and the file it names exists here. A link to a
+    heading of the README itself stays an anchor, since PyPI keeps those working.
+    """
+
+    for match in _LINK.finditer(_prose(README.read_text(encoding="utf-8"))):
+        target = match["target"]
+        if target.startswith("#"):
+            continue
+        assert re.match(r"[a-z]+:", target), f"README.md: {target} is relative"
+        if repo_file := _REPO_FILE.match(target):
+            assert (REPO / repo_file["path"]).exists(), f"README.md: {target}"
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="the tracked files come from git")
