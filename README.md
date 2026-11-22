@@ -75,7 +75,9 @@ Beside the test-integrity rules:
   4000 lines. The paths and the limits are yours to edit, in the policy file.
 - **Unresolved review threads.** While a review thread on the pull request is
   unresolved, it waits for a person: somebody asked a question and nobody has
-  answered it.
+  answered it. Resolving the thread doesn't start a new run, because GitHub
+  Actions has no event for it. Re-run the latest honest-ci run, or push a
+  commit, and the new run reads the threads again.
 
 [bench/](bench/README.md) measures how often these checks fire on pull
 requests that coding agents opened in public repositories, next to pull
@@ -90,7 +92,7 @@ link to the line.
 At the root of your repository:
 
 ```bash
-pipx run --spec git+https://github.com/ChrisShips/honest-ci@v0.1.1 honest-ci init --github
+pipx run --spec honest-ci==0.1.1 honest-ci init --github
 ```
 
 It writes three files, and leaves alone any that already exist:
@@ -119,7 +121,11 @@ Then:
    ruleset for your default branch, require the status check
    `honest-ci/verify`. GitHub offers a check here only once it has reported
    in the past week, which it did on the first pull request. On a private
-   repository, branch protection and rulesets need a paid plan.
+   repository, branch protection and rulesets need a paid plan. If your
+   repository takes pull requests from forks, read
+   [Pull requests from forks](#pull-requests-from-forks) first: with the check
+   required, a pull request from a fork can't be merged unless someone
+   bypasses the rule.
 3. **Protect the configuration.** See
    [What it protects against](#what-it-protects-against-and-what-it-doesnt):
    a `CODEOWNERS` entry for `.github/` and `honest-ci-*.toml`.
@@ -211,7 +217,7 @@ try the Action on, and says what each pull request there should show.
 before there is a pull request. With pipx and Python 3.11 or later:
 
 ```bash
-pipx install git+https://github.com/ChrisShips/honest-ci@v0.1.1
+pipx install honest-ci==0.1.1
 ```
 
 The Python demo is the quickest way to see it catch something. In its
