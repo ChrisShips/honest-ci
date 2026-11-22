@@ -597,6 +597,27 @@ def test_a_java_test_whose_annotation_is_removed_no_longer_runs() -> None:
     )
 
 
+def test_a_removed_java_parameterized_test_with_multiline_annotation_is_a_deleted_test() -> None:
+    parameterized = (
+        "\n    @ParameterizedTest\n"
+        "    @CsvSource({\n"
+        '        "2.5, 3",\n'
+        '        "0.5, 1"\n'
+        "    })\n"
+        "    void roundsValues(double raw, int expected) {\n"
+        "        assertEquals(expected, Cart.total(raw));\n"
+        "    }\n"
+    )
+    before = JAVA_HEAD + parameterized + "}\n"
+
+    hits = detect(edit(JAVA_PATH, before, JAVA_HEAD + "}\n"))
+
+    assert [(hit.check, hit.file, hit.line, hit.side) for hit in hits] == [
+        ("deleted_test", JAVA_PATH, 18, "base")
+    ]
+    assert "`roundsValues`" in hits[0].detail
+
+
 def test_a_python_test_renamed_out_of_collection_is_a_deletion() -> None:
     after = PY.replace("def test_rounds_half_up", "def _test_rounds_half_up")
 
@@ -817,6 +838,52 @@ def test_a_one_line_each_test_is_a_test_too() -> None:
     before = JS_HEAD + "\n" + each + "});\n"
 
     assert found(edit(JS_PATH, before, JS_HEAD + "});\n")) == [("deleted_test", JS_PATH, 8, "base")]
+
+
+JS_TABLE = """\
+import { total } from "./cart";
+
+describe("total", () => {
+  test.each([
+    { name: "empty cart", items: [], expected: 0 },
+    { name: "rounds half up", items: [2.5], expected: 3 },
+  ])("$name", ({ items, expected }) => {
+    expect(total(items)).toBe(expected);
+  });
+});
+"""
+JS_HALF_UP_CASE = '    { name: "rounds half up", items: [2.5], expected: 3 },\n'
+
+
+def test_a_named_case_removed_from_a_js_each_table_is_a_deleted_test() -> None:
+    hits = detect(edit(JS_PATH, JS_TABLE, JS_TABLE.replace(JS_HALF_UP_CASE, "")))
+
+    assert [(hit.check, hit.line) for hit in hits] == [("deleted_test", 6)]
+    assert hits[0].detail == (
+        "Case `rounds half up` is removed from its test table, and no case by that name is "
+        "added back in this change."
+    )
+
+
+def test_renaming_a_js_each_case_is_neither_a_deletion_nor_a_changed_expectation() -> None:
+    renamed = JS_TABLE.replace('"rounds half up"', '"rounds halves up"')
+    changed_value = JS_TABLE.replace("expected: 3", "expected: 2")
+    replaced = JS_TABLE.replace(
+        JS_HALF_UP_CASE, '    { name: "two items", items: [1, 2], expected: 3 },\n'
+    )
+
+    assert detect(edit(JS_PATH, JS_TABLE, renamed) + CODE) == []
+    assert found(edit(JS_PATH, JS_TABLE, changed_value) + CODE) == [
+        ("changed_expectation", JS_PATH, 6, "base")
+    ]
+    assert found(edit(JS_PATH, JS_TABLE, replaced) + CODE) == [("deleted_test", JS_PATH, 6, "base")]
+
+
+def test_a_js_fixture_array_is_not_a_test_table() -> None:
+    before = JS + '\nconst shoppers = [\n  { name: "ann" },\n  { name: "bo" },\n];\n'
+    after = before.replace('  { name: "bo" },\n', "")
+
+    assert detect(edit(JS_PATH, before, after)) == []
 
 
 JUNIT3 = """\
@@ -1106,6 +1173,37 @@ def test_a_marker_in_a_comment_string_or_name_is_not_a_skip(
     path: str, before: str, after: str
 ) -> None:
     assert detect(edit(path, before, after)) == []
+
+
+def test_an_escaped_closing_quote_at_line_end_keeps_a_multiline_string_open() -> None:
+    # A line ending with an escaped delimiter (``\` `` in JS, ``\"""`` in
+    # Python) leaves the string open across the newline; only an unescaped
+    # delimiter closes it. Go raw strings have no escapes, so ``\` `` closes.
+    js_after = above(
+        JS,
+        "expect(total([2.5]))",
+        'const usage = `prefix \\`\n  it.only("inside")\n`;',
+    )
+    py_after = above(
+        PY,
+        "assert total([2.5]) == 3",
+        'usage = """prefix \\"""\n@pytest.mark.skip(reason="inside")\n"""',
+    )
+    py_raw_after = above(
+        PY,
+        "assert total([2.5]) == 3",
+        'usage = r"""prefix \\"""\n@pytest.mark.skip(reason="inside")\n"""',
+    )
+    go_after = above(
+        GO,
+        "want := 3.0",
+        't.Log(`ends with backslash \\`)\nt.Skip("real skip")',
+    )
+
+    assert detect(edit(JS_PATH, JS, js_after)) == []
+    assert detect(edit(PY_PATH, PY, py_after)) == []
+    assert detect(edit(PY_PATH, PY, py_raw_after)) == []
+    assert found(edit(GO_PATH, GO, go_after)) == [("skip_or_focus", GO_PATH, 13, "head")]
 
 
 def test_changing_the_reason_of_an_existing_skip_is_not_a_new_skip() -> None:
@@ -1673,6 +1771,15 @@ def test_a_regular_expression_is_one_literal() -> None:
     assert "(`/receipts\\/*\\.txt/` → `/receipts\\/*\\.pdf/`)" in hits[0].detail
 
 
+def test_a_nul_byte_in_a_test_line_does_not_collide_with_a_literal_placeholder() -> None:
+    # Git only sniffs the first 8 KB of a file for binary content, so a NUL byte
+    # past that boundary enters a text diff verbatim. Read bare into ``shape``,
+    # it matched the NUL placeholder used for literals and crashed pairing.
+    after = PY.replace("assert total([2.5]) == 3", "assert total([2.5]) == \x00")
+
+    assert detect(edit(PY_PATH, PY, after) + CODE) == []
+
+
 # ── e. loosened_threshold ────────────────────────────────────────────────────
 
 PYPROJECT = """\
@@ -1791,6 +1898,30 @@ def test_a_test_run_that_leaves_tests_out_is_reported_on_the_head_side(
         ("loosened_threshold", path, 5, "head")
     ]
     assert hits[0].detail == detail
+
+
+def test_pytest_flags_written_as_argument_lists_are_reported() -> None:
+    # pyproject.toml addopts and noxfile.py session.run(...) pass flags and
+    # values as separate list elements: ["-k", "not slow"], ["--ignore", "..."].
+    pyproject_before = '[tool.pytest.ini_options]\naddopts = ["--cov=shop", "--cov-fail-under", "90"]\n'
+    keyword_after = pyproject_before.replace('"90"]', '"90", "-k", "not slow"]')
+    ignore_after = pyproject_before.replace('"90"]', '"90", "--ignore", "tests/slow"]')
+    lowered_after = pyproject_before.replace('"90"]', '"75"]')
+    nox_before = 'def tests(session):\n    session.run("pytest")\n'
+    nox_after = 'def tests(session):\n    session.run("pytest", "-m", "not integration")\n'
+
+    assert [hit.detail for hit in detect(edit("pyproject.toml", pyproject_before, keyword_after))] == [
+        'Filters tests out by keyword (`-k "not slow"`).'
+    ]
+    assert [hit.detail for hit in detect(edit("pyproject.toml", pyproject_before, ignore_after))] == [
+        "Excludes `tests/slow` from test collection."
+    ]
+    assert [hit.detail for hit in detect(edit("pyproject.toml", pyproject_before, lowered_after))] == [
+        "Loosens the coverage threshold: `--cov-fail-under` 90 → 75."
+    ]
+    assert [hit.detail for hit in detect(edit("noxfile.py", nox_before, nox_after))] == [
+        'Filters tests out by marker (`-m "not integration"`).'
+    ]
 
 
 def test_an_ignore_flag_for_a_linter_or_in_a_comment_is_not_an_exclusion() -> None:

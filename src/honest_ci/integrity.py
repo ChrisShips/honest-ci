@@ -292,11 +292,23 @@ def _lex(rows: Iterable[_Row], language: _Language) -> None:
         row.reading, still_open = _read(row.text, language, still_open)
 
 
+def _shape_token(value: str) -> str:
+    """Escape raw NUL bytes so they never collide with the ``_LITERAL`` sentinel."""
+
+    # Git only sniffs the first 8 KB of a file for binary content, so a NUL byte
+    # past that boundary reaches ``_read`` as plain text. Left bare in ``shape``
+    # or ``tokens``, it matches ``_LITERAL`` without adding an entry to
+    # ``literals``, breaking their 1-to-1 correspondence.
+    if _LITERAL in value or "\x01" in value:
+        return value.replace("\x01", "\x011").replace(_LITERAL, "\x010")
+    return value
+
+
 def _read(
     text: str, language: _Language, still_open: _Open | None
 ) -> tuple[_Reading, _Open | None]:
     if len(text) > MAX_SCANNED_LINE_CHARS:
-        return _Reading(code="", shape=text), None
+        return _Reading(code="", shape=_shape_token(text)), None
     code: list[str] = []
     shape: list[str] = []
     literals: list[tuple[str, tuple[str, object]]] = []
@@ -360,7 +372,7 @@ def _read(
             literals.append((value, ("keyword", value)))
         else:
             code.append(value)
-            shape.append(value)
+            shape.append(_shape_token(value))
     return _Reading("".join(code), "".join(shape), tuple(literals), tuple(shape)), still_open
 
 
@@ -371,17 +383,17 @@ def _left_open(token: str, language: _Language) -> _Open | None:
         return None if len(token) >= 4 and token.endswith("*/") else _Open("*/", comment=True)
     body = token.lstrip("rRbBuUfF")
     if language == "python" and body[:3] in ('"""', "'''"):
-        if len(body) >= 6 and body.endswith(body[:3]):
-            return None
-        raw = "r" in token[: len(token) - len(body)].lower()
-        return _Open(body[:3], comment=False, escapes=not raw)
+        # Even in raw Python strings a backslash escapes the quote right after
+        # it for tokenization, so ``_closing`` decides whether the line closed
+        # the delimiter rather than a bare ``endswith``.
+        candidate = _Open(body[:3], comment=False, escapes=True)
+        return None if _closing(body[3:], candidate) is not None else candidate
     if language == "java" and body.startswith('"""'):
         # A text block's opening line cannot hold its closing delimiter.
         return _Open('"""', comment=False, escapes=True)
     if language in ("javascript", "go") and body.startswith("`"):
-        if len(body) >= 2 and body.endswith("`"):
-            return None
-        return _Open("`", comment=False, escapes=language == "javascript")
+        candidate = _Open("`", comment=False, escapes=language == "javascript")
+        return None if _closing(body[1:], candidate) is not None else candidate
     return None
 
 
@@ -1123,6 +1135,10 @@ _GO_CASE_CODE = re.compile(rf"^\s*\{{?\s*{_CASE_FIELDS}\s*:\s*\"")
 _GO_CASE = re.compile(rf"^\s*\{{?\s*{_CASE_FIELDS}\s*:\s*\"(?P<name>(?:\\.|[^\"\\])*)\"")
 _GO_KEYED_CASE_CODE = re.compile(r"^\s*\"\"\s*:\s*\{")
 _GO_KEYED_CASE = re.compile(r"^\s*\"(?P<name>(?:\\.|[^\"\\])*)\"\s*:\s*\{")
+_JS_CASE_CODE = re.compile(rf"^\s*\{{?\s*{_CASE_FIELDS}\s*:\s*(?:\"\"|''|``)")
+_JS_CASE = re.compile(
+    rf"^\s*\{{?\s*{_CASE_FIELDS}\s*:\s*(?P<quote>['\"`])(?P<name>(?:\\.|(?!(?P=quote)).)*)(?P=quote)"
+)
 _PY_CASE_CODE = re.compile(r"\bpytest\.param\s*\(")
 _PY_CASE = re.compile(
     r"\bpytest\.param\s*\(.*?\bid\s*=\s*"
@@ -1178,8 +1194,16 @@ def _java_defs(view: Sequence[_Row]) -> Iterator[_TestDef]:
         annotation = _JAVA_TEST_ANNOTATION.search(_code(row))
         if annotation is None:
             continue
-        for candidate in view[index : index + _JAVA_ANNOTATION_REACH]:
+        # Follow multi-line annotations (such as @CsvSource({...}) under
+        # @ParameterizedTest) until their brackets close, while still bounding
+        # top-level gap lines by ``_JAVA_ANNOTATION_REACH``.
+        depth = 0
+        top_level = 0
+        for candidate in view[index : index + _MAX_TABLE_LINES]:
             code = _code(candidate)
+            if depth > 0:
+                depth = max(0, depth + _balance(code))
+                continue
             declaration = _JAVA_DECLARATION.match(code)
             if declaration is not None and declaration["type"] not in _JAVA_STATEMENT_WORDS:
                 claimed.add(candidate)
@@ -1189,6 +1213,10 @@ def _java_defs(view: Sequence[_Row]) -> Iterator[_TestDef]:
                 break
             if candidate is not row and code.strip() and not _JAVA_ANNOTATION.match(code):
                 break
+            top_level += 1
+            if top_level >= _JAVA_ANNOTATION_REACH:
+                break
+            depth = max(0, _balance(code))
     # JUnit 3: no annotation, the name is what makes it a test.
     for row in view:
         match = _JAVA_JUNIT3.match(_code(row))
@@ -1199,10 +1227,11 @@ def _java_defs(view: Sequence[_Row]) -> Iterator[_TestDef]:
 def _case_name(row: _Row, language: _Language) -> str | None:
     """The name of the test-table case a row starts, where it has one.
 
-    A Go case names itself with a ``name`` field or a map key. That alone is
-    also how a slice of fixtures looks, so the row has to sit in a table whose
-    start is in view, or say on the same line what it wants. A
-    ``pytest.param`` names itself with ``id=``. Bare values have no name.
+    A Go or JavaScript case names itself with a ``name`` field (or, in Go, a
+    map key). That alone is also how a slice or array of fixtures looks, so the
+    row has to sit in a table whose start is in view, or say on the same line
+    what it wants. A ``pytest.param`` names itself with ``id=``. Bare values
+    have no name.
     """
 
     code = _code(row)
@@ -1217,6 +1246,9 @@ def _case_name(row: _Row, language: _Language) -> str | None:
         )
         if pattern is not None and (row.in_table or _EXPECTATION_NAME.search(code)):
             match = pattern.match(row.text)
+    elif language == "javascript":
+        if _JS_CASE_CODE.match(code) and (row.in_table or _EXPECTATION_NAME.search(code)):
+            match = _JS_CASE.match(row.text)
     elif language == "python" and _PY_CASE_CODE.search(code):
         match = _PY_CASE.search(row.text)
     return match["name"] if match is not None else None
@@ -1448,7 +1480,7 @@ def _saying(row: _Row) -> tuple[str, tuple[object, ...]]:
 
 
 def _case_rows(view: Sequence[_Row], index: int, language: _Language) -> list[_Row]:
-    """A case's own line, and for a Go case written over several lines the lines after it.
+    """A case's own line, and for a Go or JavaScript case over several lines the lines after it.
 
     A case whose ``{`` opens on its own line ends where its brackets close;
     one whose ``{`` is on the line above ends at the ``}`` that closes it.
@@ -1457,11 +1489,16 @@ def _case_rows(view: Sequence[_Row], index: int, language: _Language) -> list[_R
     """
 
     decl = view[index]
-    if language != "go":
+    if language not in ("go", "javascript"):
         return [decl]
     code = _code(decl)
     depth = _balance(code)
-    end = 0 if code.lstrip().startswith("{") or _GO_KEYED_CASE_CODE.match(code) else -1
+    end = (
+        0
+        if code.lstrip().startswith("{")
+        or (language == "go" and _GO_KEYED_CASE_CODE.match(code))
+        else -1
+    )
     rows = [decl]
     for row in view[index + 1 : index + _MAX_TABLE_LINES]:
         if depth <= end:
@@ -1896,9 +1933,9 @@ def _expectations(
     span = 0
     for index, row in enumerate(view):
         code = _code(row)
-        # A named Go case is a case even when its table starts above the hunk.
+        # A named Go or JavaScript case is a case even when its table starts above the hunk.
         case = (language == "python" and _PY_CASE_CODE.search(code)) or (
-            language == "go" and _case_name(row, language) is not None
+            language in ("go", "javascript") and _case_name(row, language) is not None
         )
         if row.in_table or case:
             flagged[row] = ("test case", row.names)
@@ -2070,8 +2107,12 @@ class _Threshold:
     ceiling: bool = False
 
 
+#: Separator between a flag and its value, on a shell line (``=`` or space) or
+#: across adjacent elements of an argv list (``"-k", "not slow"``).
+_FLAG_SEP = r"(?:=|\s+|[\"']\s*,\s*)"
+
 _COVERAGE_FLAG = re.compile(
-    r"(?<![\w-])(?P<key>--cov-fail-under|--fail-under)(?:=|\s+)[\"']?(?P<value>\d+(?:\.\d+)?)"
+    rf"(?<![\w-])(?P<key>--cov-fail-under|--fail-under){_FLAG_SEP}[\"']?(?P<value>\d+(?:\.\d+)?)"
 )
 _FAIL_UNDER = re.compile(r"^\s*(?P<key>fail_under)\s*[=:]\s*[\"']?(?P<value>\d+(?:\.\d+)?)")
 _JS_COVERAGE_METRIC = re.compile(
@@ -2148,18 +2189,18 @@ _TEST_COMMAND = (
 _EXCLUSIONS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "--ignore",
-        re.compile(r"(?<![\w-])--(?:ignore|ignore-glob)(?:=|\s+)[\"']?(?P<value>[^\s\"',\]]+)"),
+        re.compile(rf"(?<![\w-])--(?:ignore|ignore-glob){_FLAG_SEP}[\"']?(?P<value>[^\s\"',\]]+)"),
         "Excludes `{value}` from test collection.",
     ),
     (
         "--deselect",
-        re.compile(r"(?<![\w-])--deselect(?:=|\s+)[\"']?(?P<value>[^\s\"',\]]+)"),
+        re.compile(rf"(?<![\w-])--deselect{_FLAG_SEP}[\"']?(?P<value>[^\s\"',\]]+)"),
         "Deselects `{value}` from the test run.",
     ),
     (
         "-k",
         re.compile(
-            r"(?<![\w-])-k(?:\s*=\s*|\s+)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
+            r"(?<![\w-])-k(?:\s*=\s*|\s+|[\"']\s*,\s*)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
             r"(?P=quote)"
         ),
         'Filters tests out by keyword (`-k "{value}"`).',
@@ -2167,7 +2208,7 @@ _EXCLUSIONS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "-m",
         re.compile(
-            r"(?<![\w-])-m(?:\s*=\s*|\s+)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
+            r"(?<![\w-])-m(?:\s*=\s*|\s+|[\"']\s*,\s*)?(?P<quote>[\"'])(?P<value>[^\"']*\bnot\b[^\"']*)"
             r"(?P=quote)"
         ),
         'Filters tests out by marker (`-m "{value}"`).',
