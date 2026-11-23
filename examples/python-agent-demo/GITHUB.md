@@ -13,7 +13,7 @@ This list covers that side.
 
 ## 1. Build the repository
 
-You need `bash`, `git` and honest-ci on `PATH`. `pipx install honest-ci==0.1.1`
+You need `bash`, `git` and honest-ci on `PATH`. `pipx install honest-ci==0.1.2`
 installs it; alternatively, set `HONEST_CI` to its path. From a clone of the
 honest-ci repository:
 
@@ -22,7 +22,7 @@ examples/python-agent-demo/github-demo.sh /tmp/honest-ci-demo
 ```
 
 The workflow that `honest-ci init --github` writes calls the Action at the
-release tag of the honest-ci that wrote it, `v0.1.1` here. To try a commit that
+release tag of the honest-ci that wrote it, `v0.1.2` here. To try a commit that
 isn't released yet, `--action-ref` points the workflow at another branch, tag
 or commit SHA instead.
 
